@@ -6,7 +6,7 @@ import 'package:get_storage/get_storage.dart';
 import 'firebase_options.dart';
 
 import 'utils/colors.dart';
-import 'views/onboarding_view.dart';
+import 'views/splash_view.dart';
 import 'controllers/home_controller.dart';
 import 'controllers/interest_controller.dart';
 import 'controllers/saved_controller.dart';
@@ -151,7 +151,7 @@ class _NewslyAppState extends State<NewslyApp> {
         scaffoldBackgroundColor: AppColors.background,
         useMaterial3: true,
       ),
-      home: const OnboardingView(),
+      home: const SplashView(),
     );
   }
 }

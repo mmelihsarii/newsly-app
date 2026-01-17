@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_view.dart';
 
 class OnboardingView extends StatefulWidget {
@@ -41,20 +42,29 @@ class _OnboardingViewState extends State<OnboardingView> {
     },
   ];
 
-  void _nextPage() {
+  void _nextPage() async {
     if (_currentPage < _onboardingData.length - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     } else {
-      // Son sayfada - Login ekranına git
-      Get.to(() => LoginView());
+      // Son sayfada - Intro tamamlandı olarak kaydet ve Login'e git
+      await _markIntroAsShown();
+      Get.offAll(() => LoginView());
     }
   }
 
-  void _skip() {
-    Get.to(() => LoginView());
+  Future<void> _skip() async {
+    // Intro atlandı olarak kaydet ve Login'e git
+    await _markIntroAsShown();
+    Get.offAll(() => LoginView());
+  }
+
+  Future<void> _markIntroAsShown() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isIntroShown', true);
+    print('✅ isIntroShown = true olarak kaydedildi');
   }
 
   @override
@@ -76,20 +86,21 @@ class _OnboardingViewState extends State<OnboardingView> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // SVG Logo
+                  // SVG Logo - Sol tarafta ve büyük
                   SizedBox(
-                    height: 28,
-                    width: 100,
+                    height: 80,
+                    width: 280,
                     child: SvgPicture.asset(
                       'assets/logo.svg',
                       fit: BoxFit.contain,
+                      alignment: Alignment.centerLeft,
                       colorFilter: const ColorFilter.mode(
                         Color(0xFFF4220B),
                         BlendMode.srcIn,
                       ),
                     ),
                   ),
-                  // Skip Button
+                  // Skip Button - Sağ tarafta
                   TextButton(
                     onPressed: _skip,
                     child: const Text(

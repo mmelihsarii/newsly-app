@@ -75,13 +75,11 @@ class UserService extends GetxController {
     }
   }
 
-  /// Tam profil kaydet (Ad, Soyad, Hakkında, Burç, Takım)
+  /// Tam profil kaydet (Ad, Soyad, Hakkında)
   Future<bool> saveFullProfile({
     required String firstName,
     required String lastName,
     String? about,
-    String? zodiacSign,
-    String? team,
   }) async {
     if (userId == null) return false;
 
@@ -91,8 +89,6 @@ class UserService extends GetxController {
         'lastName': lastName,
         'displayName': '$firstName $lastName',
         'about': about ?? '',
-        'zodiacSign': zodiacSign ?? '',
-        'team': team ?? '',
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 

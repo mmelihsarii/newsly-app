@@ -8,7 +8,7 @@ import '../controllers/saved_controller.dart';
 class NewsDetailPage extends StatelessWidget {
   final NewsModel news;
 
-  const NewsDetailPage({Key? key, required this.news}) : super(key: key);
+  const NewsDetailPage({super.key, required this.news});
 
   @override
   Widget build(BuildContext context) {

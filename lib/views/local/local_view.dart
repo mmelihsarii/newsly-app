@@ -70,14 +70,16 @@ class LocalView extends StatelessWidget {
           );
         }
 
+        // selectedCity'yi burada dinle - bu tüm listenin yeniden build edilmesini sağlar
+        final currentSelectedCity = controller.selectedCity.value;
+
         return ListView.builder(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           itemCount: controller.cityList.length,
           itemBuilder: (context, index) {
             final city = controller.cityList[index];
-            final isSelected =
-                controller.selectedCity.value?['name'] == city['name'];
+            final isSelected = currentSelectedCity?['name'] == city['name'];
             final cityName = city['name'] ?? '';
             final plateCode = (index + 1).toString().padLeft(2, '0');
 
@@ -87,12 +89,13 @@ class LocalView extends StatelessWidget {
                 margin: const EdgeInsets.only(right: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.grey.shade100,
+                  color: isSelected ? AppColors.primary : Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isSelected
                         ? AppColors.primary
                         : Colors.grey.shade300,
+                    width: isSelected ? 1.5 : 1.0,
                   ),
                 ),
                 child: Center(

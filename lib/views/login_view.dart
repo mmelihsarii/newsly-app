@@ -1,6 +1,8 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import 'city_selection_view.dart';
 import 'dashboard_view.dart';
@@ -22,12 +24,15 @@ class LoginView extends StatelessWidget {
   Future<void> _signInWithGoogle() async {
     final result = await _authService.signInWithGoogle();
     if (result != null) {
+      // Giriş başarılı - isLoggedIn kaydet
+      await _markAsLoggedIn();
       // Giriş yapan kullanıcıyı şehir seçimine yönlendir
       Get.offAll(() => const CitySelectionView());
     }
   }
 
   void _signInWithApple() {
+    // Apple sign-in henüz implemente edilmedi, sadece bilgi göster
     _authService.signInWithApple();
   }
 
@@ -35,8 +40,16 @@ class LoginView extends StatelessWidget {
     Get.to(() => const EmailLoginView());
   }
 
-  void _continueAsGuest() {
+  Future<void> _continueAsGuest() async {
+    // Misafir olarak devam - yine de isLoggedIn kaydet
+    await _markAsLoggedIn();
     Get.offAll(() => DashboardView());
+  }
+
+  Future<void> _markAsLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', true);
+    print('✅ isLoggedIn = true olarak kaydedildi');
   }
 
   @override
@@ -232,34 +245,37 @@ class LoginView extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    // Apple Button (daha tombul)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 60,
-                      child: OutlinedButton.icon(
-                        onPressed: _signInWithApple,
-                        icon: const Icon(
-                          Icons.apple,
-                          size: 26,
-                          color: Colors.black,
-                        ),
-                        label: const Text(
-                          'Apple ile Giriş Yap',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                    // Apple Button - sadece iOS'ta göster
+                    if (Platform.isIOS)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 60,
+                          child: OutlinedButton.icon(
+                            onPressed: _signInWithApple,
+                            icon: const Icon(
+                              Icons.apple,
+                              size: 26,
+                              color: Colors.black,
+                            ),
+                            label: const Text(
+                              'Apple ile Giriş Yap',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: Colors.grey.shade300),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),

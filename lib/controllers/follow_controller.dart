@@ -124,13 +124,35 @@ class FollowController extends GetxController {
     }
   }
 
+  // Kategori ismi -> ID eşleştirmesi (Backend veritabanından)
+  static const Map<String, int> _categoryIds = {
+    'Yerel Haberler': 1,
+    'Son Dakika': 2,
+    'Gündem': 3,
+    'Spor': 4,
+    'Ekonomi': 5,
+    'Ekonomi & Finans': 5,
+    'Bilim': 6,
+    'Teknoloji': 6,
+    'Bilim & Teknoloji': 6,
+    'Haber Ajansları': 9,
+    'Yabancı Kaynaklar': 10,
+  };
+
   // API'den kategori haberleri çek
   Future<List<NewsModel>> _fetchCategoryNews(String categoryName) async {
     try {
+      // Kategori ID'sini bul
+      final categoryId = _categoryIds[categoryName];
+      if (categoryId == null) {
+        print('Kategori ID bulunamadı: $categoryName');
+        return [];
+      }
+
       final response = await _apiService.postData('get_news', {
         'language_id': '2',
         'access_key': '6808',
-        'category_name': categoryName,
+        'category_id': categoryId.toString(),
         'limit': '10',
         'offset': '0',
       });

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../services/user_service.dart';
-import 'category_selection_view.dart';
-import 'dashboard_view.dart';
+import 'source_selection_view.dart';
 
 class CitySelectionView extends StatefulWidget {
   const CitySelectionView({super.key});
@@ -115,8 +114,8 @@ class _CitySelectionViewState extends State<CitySelectionView> {
   }
 
   void _skip() {
-    // Şehir seçimi atlandığında da kategori seçimine git
-    Get.to(() => const CategorySelectionView());
+    // Şehir seçimi atlandığında kaynak seçimine git
+    Get.to(() => const SourceSelectionView());
   }
 
   Future<void> _next() async {
@@ -129,8 +128,8 @@ class _CitySelectionViewState extends State<CitySelectionView> {
       // Şehir bilgisini ayrıca kaydet
       // TODO: UserService'e city field eklenebilir
 
-      // Kategori seçimine git
-      Get.to(() => const CategorySelectionView());
+      // Kaynak seçimine git
+      Get.to(() => const SourceSelectionView());
     }
   }
 

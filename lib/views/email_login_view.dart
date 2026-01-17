@@ -1,8 +1,9 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import 'city_selection_view.dart';
-import 'dashboard_view.dart';
 
 class EmailLoginView extends StatefulWidget {
   const EmailLoginView({super.key});
@@ -21,6 +22,12 @@ class _EmailLoginViewState extends State<EmailLoginView> {
 
   void _goBack() {
     Get.back();
+  }
+
+  Future<void> _markAsLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', true);
+    print('✅ isLoggedIn = true olarak kaydedildi');
   }
 
   Future<void> _signIn() async {
@@ -46,6 +53,8 @@ class _EmailLoginViewState extends State<EmailLoginView> {
           );
 
     if (result != null) {
+      // Giriş başarılı - isLoggedIn kaydet
+      await _markAsLoggedIn();
       // Giriş yapan kullanıcıyı şehir seçimine yönlendir
       Get.offAll(() => const CitySelectionView());
     }
@@ -54,6 +63,8 @@ class _EmailLoginViewState extends State<EmailLoginView> {
   Future<void> _signInWithGoogle() async {
     final result = await _authService.signInWithGoogle();
     if (result != null) {
+      // Giriş başarılı - isLoggedIn kaydet
+      await _markAsLoggedIn();
       // Giriş yapan kullanıcıyı şehir seçimine yönlendir
       Get.offAll(() => const CitySelectionView());
     }
@@ -112,9 +123,9 @@ class _EmailLoginViewState extends State<EmailLoginView> {
                 _buildToggle(),
                 const SizedBox(height: 32),
                 // Title
-                const Text(
-                  "Let's Sign\nYou In",
-                  style: TextStyle(
+                Text(
+                  _isSignIn ? "Giriş\nYap" : "Kayıt\nOl",
+                  style: const TextStyle(
                     fontSize: 36,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1E3A5F),
@@ -125,7 +136,7 @@ class _EmailLoginViewState extends State<EmailLoginView> {
                 // Email Field
                 _buildTextField(
                   controller: _emailController,
-                  hintText: 'Email',
+                  hintText: 'E-posta',
                   prefixIcon: Icons.email_outlined,
                 ),
                 const SizedBox(height: 16),
@@ -136,7 +147,7 @@ class _EmailLoginViewState extends State<EmailLoginView> {
                 GestureDetector(
                   onTap: _forgotPassword,
                   child: const Text(
-                    'forget password?',
+                    'Şifremi unuttum',
                     style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ),
@@ -155,9 +166,9 @@ class _EmailLoginViewState extends State<EmailLoginView> {
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'Sign In',
-                      style: TextStyle(
+                    child: Text(
+                      _isSignIn ? 'Giriş Yap' : 'Kayıt Ol',
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -168,7 +179,7 @@ class _EmailLoginViewState extends State<EmailLoginView> {
                 // Or sign in with
                 const Center(
                   child: Text(
-                    'Or sign in with',
+                    'veya ile giriş yap',
                     style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ),
@@ -209,35 +220,35 @@ class _EmailLoginViewState extends State<EmailLoginView> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    // Apple Button
-                    Expanded(
-                      child: SizedBox(
-                        height: 56,
-                        child: OutlinedButton.icon(
-                          onPressed: _signInWithApple,
-                          icon: const Icon(
-                            Icons.apple,
-                            size: 22,
-                            color: Colors.black,
-                          ),
-                          label: const Text(
-                            'Apple ID',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.black87,
+                    // Apple Button - sadece iOS'ta göster
+                    if (Platform.isIOS)
+                      Expanded(
+                        child: SizedBox(
+                          height: 56,
+                          child: OutlinedButton.icon(
+                            onPressed: _signInWithApple,
+                            icon: const Icon(
+                              Icons.apple,
+                              size: 22,
+                              color: Colors.black,
                             ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.grey.shade300),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
+                            label: const Text(
+                              'Apple ID',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: Colors.grey.shade300),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 40),
@@ -269,7 +280,7 @@ class _EmailLoginViewState extends State<EmailLoginView> {
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Text(
-                'Sign In',
+                'Giriş Yap',
                 style: TextStyle(
                   color: _isSignIn ? Colors.white : Colors.grey,
                   fontSize: 14,
@@ -290,7 +301,7 @@ class _EmailLoginViewState extends State<EmailLoginView> {
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Text(
-                'Sign Up',
+                'Kayıt Ol',
                 style: TextStyle(
                   color: !_isSignIn ? Colors.white : Colors.grey,
                   fontSize: 14,
@@ -342,7 +353,7 @@ class _EmailLoginViewState extends State<EmailLoginView> {
         controller: _passwordController,
         obscureText: _obscurePassword,
         decoration: InputDecoration(
-          hintText: 'Password',
+          hintText: 'Şifre',
           hintStyle: TextStyle(color: Colors.grey.shade400),
           prefixIcon: Icon(
             Icons.visibility_outlined,

@@ -3,12 +3,15 @@ import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../controllers/home_controller.dart';
 import '../../controllers/saved_controller.dart';
+import '../../services/notification_service.dart';
 import '../../utils/colors.dart';
+import '../../widgets/notification_bottom_sheet.dart';
+import '../live_stream_view.dart';
 import '../news_detail_page.dart';
 import '../dashboard_view.dart';
 
 class HomeView extends StatelessWidget {
-  HomeView({super.key});
+  const HomeView({super.key});
 
   HomeController get controller => Get.find<HomeController>();
   SavedController get savedController => Get.find<SavedController>();
@@ -18,55 +21,94 @@ class HomeView extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: _buildAppBar(context),
-      body: Obx(() {
-        if (controller.isLoading.value) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
-          );
-        }
-
-        if (controller.newsList.isEmpty) {
-          return const Center(child: Text("Henüz haber yok."));
-        }
-
-        return RefreshIndicator(
-          onRefresh: () async => controller.fetchNews(),
-          color: AppColors.primary,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                // Popüler Haberler Başlığı
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    "Popüler Haberler",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+      body: RefreshIndicator(
+        onRefresh: () async => controller.fetchNews(),
+        color: AppColors.primary,
+        child: SingleChildScrollView(
+          controller: controller.scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+              // Popüler Haberler Başlığı
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  "Popüler Haberler",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 12),
-                // Carousel
-                _buildCarousel(),
-                const SizedBox(height: 12),
-                // Carousel Dots
-                _buildCarouselDots(),
-                const SizedBox(height: 20),
-                // Kategori Tab Bar
-                _buildCategoryTabs(),
-                const SizedBox(height: 16),
-                // Kompakt Haber Kartları
-                _buildNewsList(),
-              ],
-            ),
+              ),
+              const SizedBox(height: 12),
+              // Carousel - kendi Obx'i var içinde
+              _buildCarousel(),
+              const SizedBox(height: 12),
+              // Carousel Dots
+              _buildCarouselDots(),
+              const SizedBox(height: 20),
+              // Kategori Tab Bar - kendi Obx'i var içinde
+              _buildCategoryTabs(),
+              const SizedBox(height: 16),
+              // Kompakt Haber Kartları - sadece bu kısım yenileniyor
+              Obx(() {
+                if (controller.isLoading.value) {
+                  return const SizedBox(
+                    height: 200,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  );
+                }
+
+                if (controller.newsList.isEmpty) {
+                  return const SizedBox(
+                    height: 200,
+                    child: Center(
+                      child: Text("Bu kategoride haber bulunamadı."),
+                    ),
+                  );
+                }
+
+                return Column(
+                  children: [
+                    _buildNewsList(),
+                    if (controller.isLoadingMore.value)
+                      const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    // Eğer tüm veriler yüklendiyse ve haber varsa
+                    if (!controller.hasMoreData.value &&
+                        controller.newsList.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Center(
+                          child: Text(
+                            "Tüm haberler yüklendi",
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              }),
+            ],
           ),
-        );
-      }),
+        ),
+      ),
     );
   }
 
@@ -105,87 +147,143 @@ class HomeView extends StatelessWidget {
           onPressed: () {},
           icon: const Icon(Icons.search, color: Colors.black87, size: 28),
         ),
-        Container(
-          margin: const EdgeInsets.symmetric(vertical: 14),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.red.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+        // Canlı Yayın Butonu
+        GestureDetector(
+          onTap: () => Get.to(() => const LiveStreamView()),
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.videocam, color: Colors.red, size: 26),
           ),
-          child: const Icon(Icons.videocam, color: Colors.red, size: 26),
         ),
         const SizedBox(width: 4),
         Stack(
           children: [
             IconButton(
-              onPressed: () {},
+              onPressed: () {
+                showNotificationsBottomSheet(context);
+              },
               icon: const Icon(
                 Icons.notifications_none_rounded,
                 color: Color(0xFFF4220B),
                 size: 28,
               ),
             ),
-            Positioned(
-              right: 10,
-              top: 10,
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF42A5F5),
-                  shape: BoxShape.circle,
+            // Okunmamış bildirim göstergesi
+            Obx(() {
+              final notificationService = NotificationService();
+              if (notificationService.unreadCount == 0) {
+                return const SizedBox.shrink();
+              }
+              return Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF42A5F5),
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  child: Text(
+                    notificationService.unreadCount > 9
+                        ? '9+'
+                        : notificationService.unreadCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-              ),
-            ),
+              );
+            }),
           ],
         ),
-        const SizedBox(width: 8),
       ],
     );
   }
 
   // Carousel - Popüler Haberler
   Widget _buildCarousel() {
-    final popularNews = controller.newsList.take(5).toList();
+    return Obx(() {
+      // Loading durumunda spinner göster
+      if (controller.isCarouselLoading.value) {
+        return const SizedBox(
+          height: 280,
+          child: Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
+        );
+      }
 
-    return SizedBox(
-      height: 280,
-      child: PageView.builder(
-        controller: controller.carouselController,
-        padEnds: false,
-        pageSnapping: true,
-        physics: const BouncingScrollPhysics(),
-        onPageChanged: (index) {
-          controller.currentCarouselIndex.value = index;
-        },
-        itemCount: popularNews.length,
-        itemBuilder: (context, index) {
-          final news = popularNews[index];
-          return GestureDetector(
-            onTap: () => Get.to(() => NewsDetailPage(news: news)),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Arka Plan Resmi
-                    news.image != null && news.image!.isNotEmpty
-                        ? Image.network(
-                            news.image!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+      final popularNews = controller.carouselNewsList;
+
+      // Hiç haber yoksa boş mesaj
+      if (popularNews.isEmpty) {
+        return const SizedBox(
+          height: 280,
+          child: Center(child: Text("Popüler haberler yüklenemedi.")),
+        );
+      }
+
+      return SizedBox(
+        height: 280,
+        child: PageView.builder(
+          controller: controller.carouselController,
+          padEnds: false,
+          pageSnapping: true,
+          physics: const BouncingScrollPhysics(),
+          onPageChanged: (index) {
+            controller.currentCarouselIndex.value = index;
+          },
+          itemCount: popularNews.length,
+          itemBuilder: (context, index) {
+            final news = popularNews[index];
+            return GestureDetector(
+              onTap: () => Get.to(() => NewsDetailPage(news: news)),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Arka Plan Resmi
+                      news.image != null && news.image!.isNotEmpty
+                          ? Image.network(
+                              news.image!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: const Color(0xFF1E3A5F),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.image,
+                                    color: Colors.white54,
+                                    size: 60,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Container(
                               color: const Color(0xFF1E3A5F),
                               child: const Center(
                                 child: Icon(
@@ -195,100 +293,90 @@ class HomeView extends StatelessWidget {
                                 ),
                               ),
                             ),
-                          )
-                        : Container(
-                            color: const Color(0xFF1E3A5F),
-                            child: const Center(
+                      // Gradient Overlay
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.8),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Kaydet Butonu
+                      Positioned(
+                        top: 16,
+                        right: 16,
+                        child: Obx(() {
+                          final isSaved = savedController.isSaved(news);
+                          return GestureDetector(
+                            onTap: () => savedController.toggleSave(news),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: isSaved ? Colors.white : Colors.red,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               child: Icon(
-                                Icons.image,
-                                color: Colors.white54,
-                                size: 60,
+                                isSaved
+                                    ? Icons.bookmark
+                                    : Icons.bookmark_border,
+                                color: isSaved ? Colors.red : Colors.white,
+                                size: 22,
                               ),
                             ),
-                          ),
-                    // Gradient Overlay
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.8),
+                          );
+                        }),
+                      ),
+                      // Başlık ve Tarih
+                      Positioned(
+                        left: 16,
+                        right: 16,
+                        bottom: 16,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              news.title ?? "",
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                height: 1.3,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              news.date ?? "",
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.7),
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                    ),
-                    // Kaydet Butonu
-                    Positioned(
-                      top: 16,
-                      right: 16,
-                      child: Obx(() {
-                        final isSaved = savedController.isSaved(news);
-                        return GestureDetector(
-                          onTap: () => savedController.toggleSave(news),
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: isSaved ? Colors.white : Colors.red,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              isSaved ? Icons.bookmark : Icons.bookmark_border,
-                              color: isSaved ? Colors.red : Colors.white,
-                              size: 22,
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                    // Başlık ve Tarih
-                    Positioned(
-                      left: 16,
-                      right: 16,
-                      bottom: 16,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            news.title ?? "",
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              height: 1.3,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            news.date ?? "",
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        },
-      ),
-    );
+            );
+          },
+        ),
+      );
+    });
   }
 
   // Carousel Dots
   Widget _buildCarouselDots() {
-    final dotCount = controller.newsList.length > 5
-        ? 5
-        : controller.newsList.length;
-    return Obx(
-      () => Row(
+    return Obx(() {
+      final dotCount = controller.carouselNewsList.length;
+      return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(dotCount, (index) {
           final isActive = controller.currentCarouselIndex.value == index;
@@ -303,20 +391,20 @@ class HomeView extends StatelessWidget {
             ),
           );
         }),
-      ),
-    );
+      );
+    });
   }
 
   // Kategori Tab Bar
   Widget _buildCategoryTabs() {
     // Her kategori için özel renkler
     final Map<String, Color> categoryColors = {
-      'Latest': const Color(0xFFF4220B),
-      'Business': const Color(0xFF213C51),
-      'Sports': const Color(0xFF42A5F5),
-      'Politics': const Color(0xFFD25353),
-      'Health': const Color(0xFF78C841),
-      'Tech': const Color(0xFFF4220B),
+      'Son Dakika': const Color(0xFFF4220B),
+      'Gündem': const Color(0xFF213C51),
+      'Spor': const Color(0xFF42A5F5),
+      'Ekonomi': const Color(0xFF78C841),
+      'Bilim & Teknoloji': const Color(0xFF6366F1),
+      'Haber Ajansları': const Color(0xFFD25353),
     };
 
     return Container(
@@ -328,7 +416,7 @@ class HomeView extends StatelessWidget {
         itemBuilder: (context, index) {
           return Obx(() {
             final isSelected = controller.selectedCategoryIndex.value == index;
-            final categoryName = controller.categories[index];
+            final categoryName = controller.categories[index]['name'] as String;
             final categoryColor =
                 categoryColors[categoryName] ?? const Color(0xFFF4220B);
 
@@ -367,7 +455,7 @@ class HomeView extends StatelessWidget {
 
   // Kompakt Haber Listesi
   Widget _buildNewsList() {
-    final newsList = controller.newsList.skip(5).toList();
+    final newsList = controller.newsList;
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -440,14 +528,6 @@ class HomeView extends StatelessWidget {
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "5 dk okuma",
-                            style: TextStyle(
-                              color: Colors.grey.shade500,
-                              fontSize: 11,
                             ),
                           ),
                           const Spacer(),

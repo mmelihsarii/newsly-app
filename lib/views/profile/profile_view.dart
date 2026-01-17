@@ -13,37 +13,12 @@ class ProfileView extends StatefulWidget {
 }
 
 class _ProfileViewState extends State<ProfileView> {
-  int selectedZodiacIndex = 0;
-  int selectedTeamIndex = -1; // -1 = hiçbiri seçili değil
   bool isSaving = false;
 
   // Text Controllers
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _aboutController = TextEditingController();
-
-  final List<Map<String, String>> zodiacSigns = [
-    {'name': 'Koç', 'symbol': '♈'},
-    {'name': 'Boğa', 'symbol': '♉'},
-    {'name': 'İkizler', 'symbol': '♊'},
-    {'name': 'Yengeç', 'symbol': '♋'},
-    {'name': 'Aslan', 'symbol': '♌'},
-    {'name': 'Başak', 'symbol': '♍'},
-    {'name': 'Terazi', 'symbol': '♎'},
-    {'name': 'Akrep', 'symbol': '♏'},
-    {'name': 'Yay', 'symbol': '♐'},
-    {'name': 'Oğlak', 'symbol': '♑'},
-    {'name': 'Kova', 'symbol': '♒'},
-    {'name': 'Balık', 'symbol': '♓'},
-  ];
-
-  final List<Map<String, dynamic>> teams = [
-    {'name': 'Fenerbahçe', 'short': 'FB', 'color': const Color(0xFF00205B)},
-    {'name': 'Galatasaray', 'short': 'GS', 'color': const Color(0xFFFF6600)},
-    {'name': 'Beşiktaş', 'short': 'BJK', 'color': Colors.black},
-    {'name': 'Trabzon', 'short': 'TS', 'color': const Color(0xFF8B0000)},
-    {'name': 'Diğer Takımlar', 'short': '⚽', 'color': Colors.grey},
-  ];
 
   @override
   void initState() {
@@ -92,8 +67,6 @@ class _ProfileViewState extends State<ProfileView> {
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         about: _aboutController.text.trim(),
-        zodiacSign: zodiacSigns[selectedZodiacIndex]['name'],
-        team: selectedTeamIndex >= 0 ? teams[selectedTeamIndex]['name'] : null,
       );
 
       if (success) {
@@ -218,10 +191,6 @@ class _ProfileViewState extends State<ProfileView> {
                   hintText: 'Kendinizden kısaca bahsedin...',
                   maxLines: 4,
                 ),
-                const SizedBox(height: 20),
-                _buildZodiacSelector(),
-                const SizedBox(height: 20),
-                _buildTeamSelector(),
                 const SizedBox(height: 30),
                 // Kaydet Butonu
                 _buildSaveButton(),
@@ -313,173 +282,6 @@ class _ProfileViewState extends State<ProfileView> {
                   : null,
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildZodiacSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Burcunuz',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 90,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: zodiacSigns.length,
-            itemBuilder: (context, index) {
-              final zodiac = zodiacSigns[index];
-              final isSelected = index == selectedZodiacIndex;
-
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedZodiacIndex = index;
-                  });
-                },
-                child: Container(
-                  width: 70,
-                  margin: const EdgeInsets.only(right: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isSelected
-                          ? const Color(0xFFF4220B)
-                          : Colors.grey.shade300,
-                      width: isSelected ? 2 : 1,
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        zodiac['symbol']!,
-                        style: TextStyle(
-                          fontSize: 26,
-                          color: isSelected
-                              ? const Color(0xFFF4220B)
-                              : Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        zodiac['name']!,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: isSelected
-                              ? const Color(0xFFF4220B)
-                              : Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTeamSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Takımınız',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: teams.asMap().entries.map((entry) {
-            final index = entry.key;
-            final team = entry.value;
-            final isSelected = index == selectedTeamIndex;
-
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  selectedTeamIndex = index;
-                });
-              },
-              child: Container(
-                width: (MediaQuery.of(context).size.width - 60) / 2,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected
-                        ? const Color(0xFFF4220B)
-                        : Colors.grey.shade300,
-                    width: isSelected ? 2 : 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: team['color'],
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          team['short'],
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        team['name'],
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: isSelected
-                              ? const Color(0xFFF4220B)
-                              : Colors.black87,
-                        ),
-                      ),
-                    ),
-                    if (isSelected)
-                      const Icon(
-                        Icons.check_circle,
-                        color: Color(0xFFF4220B),
-                        size: 20,
-                      ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
         ),
       ],
     );

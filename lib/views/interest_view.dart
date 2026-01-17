@@ -106,7 +106,7 @@ class InterestView extends StatelessWidget {
               trailing: Switch(
                 value: isFollowing,
                 onChanged: (_) => controller.toggleCity(cityName),
-                activeColor: Colors.blue,
+                activeThumbColor: Colors.blue,
                 activeTrackColor: Colors.blue.shade100,
                 inactiveThumbColor: Colors.grey.shade400,
                 inactiveTrackColor: Colors.grey.shade200,
@@ -167,7 +167,7 @@ class InterestView extends StatelessWidget {
               trailing: Switch(
                 value: isFollowing,
                 onChanged: (_) => controller.toggleCategory(categoryName),
-                activeColor: Colors.orange,
+                activeThumbColor: Colors.orange,
                 activeTrackColor: Colors.orange.shade100,
                 inactiveThumbColor: Colors.grey.shade400,
                 inactiveTrackColor: Colors.grey.shade200,
@@ -181,22 +181,22 @@ class InterestView extends StatelessWidget {
 
   IconData _getCategoryIcon(String categoryName) {
     switch (categoryName) {
-      case 'Bilim':
-        return Icons.science;
-      case 'Teknoloji':
-        return Icons.computer;
-      case 'Spor':
-        return Icons.sports_soccer;
+      case 'Yerel Haberler':
+        return Icons.location_city;
+      case 'Son Dakika':
+        return Icons.flash_on;
       case 'Gündem':
         return Icons.newspaper;
-      case 'Ekonomi':
+      case 'Spor':
+        return Icons.sports_soccer;
+      case 'Ekonomi & Finans':
         return Icons.trending_up;
-      case 'Sağlık':
-        return Icons.health_and_safety;
-      case 'Kültür & Sanat':
-        return Icons.palette;
-      case 'Eğitim':
-        return Icons.school;
+      case 'Bilim & Teknoloji':
+        return Icons.science;
+      case 'Haber Ajansları':
+        return Icons.rss_feed;
+      case 'Yabancı Kaynaklar':
+        return Icons.language;
       default:
         return Icons.category;
     }
