@@ -1,0 +1,104 @@
+{
+  "project_info": {
+    "project_number": "1025516160796",
+    "project_id": "newsly-70ef9",
+    "storage_bucket": "newsly-70ef9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1025516160796:android:2c075c74800f2f264d9cd9",
+        "android_client_info": {
+          "package_name": "com.mess.newsly"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1025516160796-rkg721dvjk8rg8djfdruv0f33mn22562.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mess.newsly",
+            "certificate_hash": "7cf16ba210d822d2f547a0bc4caf08c72269886b"
+          }
+        },
+        {
+          "client_id": "1025516160796-fenrfkjqtbjhr0jp9l1jd94nti8jfjjs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCOmFjOKTt-r7Py5KLH_LDIKRe9AqjuVX4"
+        },
+        {
+          "current_key": "AIzaSyA8Hiot2NwsNNzomr7sBJ3YILqRaYBpzCQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1025516160796-fenrfkjqtbjhr0jp9l1jd94nti8jfjjs.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1025516160796-bgb89gtk419bmciob0418j6e1rk37pqm.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.newsly.haber"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1025516160796:android:b25dce3202262db44d9cd9",
+        "android_client_info": {
+          "package_name": "com.newsly.haber"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1025516160796-qvdjog3ae37hpsvurd1jr1lvn6stjgld.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.newsly.haber",
+            "certificate_hash": "7d5be675bf8dd3fc49ed081913c8a546420c8c44"
+          }
+        },
+        {
+          "client_id": "1025516160796-fenrfkjqtbjhr0jp9l1jd94nti8jfjjs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCOmFjOKTt-r7Py5KLH_LDIKRe9AqjuVX4"
+        },
+        {
+          "current_key": "AIzaSyA8Hiot2NwsNNzomr7sBJ3YILqRaYBpzCQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1025516160796-fenrfkjqtbjhr0jp9l1jd94nti8jfjjs.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1025516160796-bgb89gtk419bmciob0418j6e1rk37pqm.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.newsly.haber"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
