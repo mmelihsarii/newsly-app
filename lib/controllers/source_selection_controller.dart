@@ -29,39 +29,69 @@ class SourceSelectionController extends GetxController {
     _loadSources();
   }
 
-  /// Load sources from Firestore first, fallback to local storage
+  /// Load sources: Offline-first strategy
+  /// 1. Load from local storage immediately (fastest, most up-to-date user action)
+  /// 2. Then check Firestore for remote updates (background sync)
   Future<void> _loadSources() async {
     isLoading.value = true;
 
     try {
-      // Try to load from Firestore first
-      if (_userId != null) {
-        final doc = await _db.collection('users').doc(_userId).get();
-        if (doc.exists) {
-          final data = doc.data();
-          final List<dynamic>? firestoreSources = data?['selectedSources'];
+      // 1. Önce yerel depodan yükle (Hızlı ve kullanıcının son seçimi buradadır)
+      _loadFromLocalStorage();
 
-          if (firestoreSources != null && firestoreSources.isNotEmpty) {
-            selectedSources.clear();
-            selectedSources.addAll(firestoreSources.cast<String>().toSet());
-            // Also cache locally for offline access
-            _saveToLocalStorage();
-            print('✅ Firestore\'dan ${selectedSources.length} kaynak yüklendi');
-            isLoading.value = false;
-            return;
-          }
-        }
+      // Eğer yerel depo boşsa veya ilk yüklemeyse Firestore'a bak
+      if (selectedSources.isEmpty && _userId != null) {
+        await _syncWithFirestore();
+      } else {
+        // Yerel veri varsa bile arka planda Firestore ile senkronize et
+        // (ama UI'ı bloklama ve mevcut seçimi ezme)
+        _syncWithFirestore()
+            .then((_) {
+              print("☁️ Firestore ile arka plan senkronizasyonu tamamlandı");
+            })
+            .catchError((e) {
+              print("⚠️ Arka plan senkronizasyon hatası: $e");
+            });
       }
-
-      // Fallback to local storage
-      _loadFromLocalStorage();
     } catch (e) {
-      print('❌ Firestore yükleme hatası: $e');
-      // Fallback to local storage on error
-      _loadFromLocalStorage();
+      print('❌ Kaynak yükleme hatası: $e');
+      if (selectedSources.isEmpty) _loadFromLocalStorage();
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> _syncWithFirestore() async {
+    if (_userId == null) return;
+
+    try {
+      final doc = await _db.collection('users').doc(_userId).get();
+      if (doc.exists) {
+        final data = doc.data();
+        final List<dynamic>? firestoreSources = data?['selectedSources'];
+
+        if (firestoreSources != null && firestoreSources.isNotEmpty) {
+          // Firestore'dan gelen veriyi HER ZAMAN kullan (en güncel kaynak)
+          final newSources = firestoreSources.cast<String>().toSet();
+          
+          // Eğer farklıysa güncelle
+          if (!_setEquals(selectedSources, newSources)) {
+            print('☁️ Firestore\'dan güncelleme: $selectedSources → $newSources');
+            selectedSources.assignAll(newSources);
+            _saveToLocalStorage(); // Yerel depoyu da güncelle
+          }
+          print('✅ Firestore\'dan ${selectedSources.length} kaynak yüklendi: $selectedSources');
+        }
+      }
+    } catch (e) {
+      print("Firestore okuma hatası: $e");
+    }
+  }
+
+  // İki Set'in eşit olup olmadığını kontrol et
+  bool _setEquals(Set<String> a, Set<String> b) {
+    if (a.length != b.length) return false;
+    return a.every((element) => b.contains(element));
   }
 
   /// Load from local storage (offline cache)
@@ -72,7 +102,7 @@ class SourceSelectionController extends GetxController {
     if (stored != null && stored.isNotEmpty) {
       selectedSources.clear();
       selectedSources.addAll(stored.cast<String>().toSet());
-      print('📱 Yerel depodan ${selectedSources.length} kaynak yüklendi');
+      print('📱 Yerel depodan ${selectedSources.length} kaynak yüklendi: $selectedSources');
     } else {
       // Default: NO sources selected - user should manually pick
       selectedSources.clear();
@@ -109,12 +139,17 @@ class SourceSelectionController extends GetxController {
 
   /// Toggle a single source selection
   Future<void> toggleSource(String sourceId) async {
+    print("🖱️ Toggle Source Tıklandı: $sourceId");
     if (selectedSources.contains(sourceId)) {
       selectedSources.remove(sourceId);
+      print("🗑️ Kaynak silindi. Güncel liste: $selectedSources");
     } else {
       selectedSources.add(sourceId);
+      print("➕ Kaynak eklendi. Güncel liste: $selectedSources");
     }
+    // Hemen kaydet (hem yerel hem Firestore)
     await _saveAll();
+    print("💾 Kaydedildi: $selectedSources");
   }
 
   /// Check if a source is selected

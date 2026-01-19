@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../models/news_model.dart';
 import '../models/featured_section_model.dart';
 import '../services/api_service.dart';
+import '../services/news_service.dart';
 import '../utils/api_constants.dart';
 import '../utils/news_sources_data.dart';
 import 'source_selection_controller.dart';
@@ -11,6 +12,7 @@ import 'source_selection_controller.dart';
 class HomeController extends GetxController {
   // Services
   late final ApiService _apiService;
+  late final NewsService _newsService;
 
   // Source Selection Controller
   SourceSelectionController? _sourceController;
@@ -23,6 +25,16 @@ class HomeController extends GetxController {
   var newsSections =
       <FeaturedSectionModel>[].obs; // type: breaking_news, horizontal_list vs.
   var isFeaturedLoading = false.obs;
+  
+  // RSS'ten gelen haberler (kullanıcı seçimine göre filtrelenmiş)
+  var rssNews = <NewsModel>[].obs;
+  
+  // Pagination için
+  static const int _pageSize = 15; // Her seferde 15 haber
+  var _allRssNews = <NewsModel>[]; // Tüm haberler (bellekte)
+  var displayedNewsCount = 15.obs; // Şu an gösterilen haber sayısı
+  var isLoadingMore = false.obs; // Daha fazla yükleniyor mu?
+  var hasMoreNews = true.obs; // Daha fazla haber var mı?
 
   // Featured slider için controller'lar
   final Map<int, PageController> featuredSliderControllers = {};
@@ -42,7 +54,11 @@ class HomeController extends GetxController {
   void onInit() {
     super.onInit();
     _apiService = ApiService();
+    _newsService = NewsService();
     scrollController = ScrollController();
+    
+    // Scroll listener - infinite scroll için
+    scrollController.addListener(_onScroll);
 
     // SourceSelectionController'ı al veya oluştur
     if (Get.isRegistered<SourceSelectionController>()) {
@@ -56,7 +72,7 @@ class HomeController extends GetxController {
       ever(_sourceController!.selectedSources, (_) {
         if (!_isDisposed) {
           print("🔄 Kaynak seçimi değişti, haberler yenileniyor...");
-          fetchFeaturedSections();
+          _loadInitialData();
         }
       });
     }
@@ -65,12 +81,246 @@ class HomeController extends GetxController {
   }
 
   Future<void> _loadInitialData() async {
-    await fetchFeaturedSections();
+    // Tek seferde yükle - önce her şeyi hazırla, sonra göster
+    isLoading.value = true;
+    isFeaturedLoading.value = true;
+    
+    try {
+      // 1. API'den section yapısını çek (haberler olmadan)
+      await _fetchSectionStructure();
+      
+      // 2. RSS'ten haberleri çek ve section'lara bağla
+      await fetchRssNews();
+    } finally {
+      isLoading.value = false;
+      isFeaturedLoading.value = false;
+    }
+  }
+
+  /// Sadece section yapısını çek (haberleri gösterme)
+  Future<void> _fetchSectionStructure() async {
+    if (_isDisposed) return;
+
+    try {
+      print("🎯 Panel'den section yapısı çekiliyor...");
+
+      final response = await _apiService.getData(
+        ApiConstants.getFeaturedSections,
+      );
+
+      if (_isDisposed) return;
+
+      if (response != null) {
+        List<FeaturedSectionModel> allSections = [];
+
+        if (response is List) {
+          allSections = response
+              .map((item) => FeaturedSectionModel.fromJson(item as Map<String, dynamic>))
+              .toList();
+        } else if (response is Map && response['data'] != null) {
+          allSections = (response['data'] as List)
+              .map((item) => FeaturedSectionModel.fromJson(item as Map<String, dynamic>))
+              .toList();
+        }
+
+        // Aktif olanları filtrele ve sırala
+        allSections = allSections.where((s) => s.isActive == true).toList();
+        allSections.sort((a, b) => (a.order ?? 0).compareTo(b.order ?? 0));
+
+        // Section yapısını kaydet (haberler boş olacak, RSS'ten dolacak)
+        final sliders = allSections.where((s) => s.type == 'slider').toList();
+        final newsLists = allSections.where((s) => s.type != 'slider').toList();
+
+        // Boş section'lar olarak kaydet (henüz gösterme)
+        _tempSliderSections = sliders;
+        _tempNewsSections = newsLists;
+
+        print("📋 ${sliders.length} slider, ${newsLists.length} news section yapısı alındı");
+      }
+    } catch (e) {
+      print("❌ Section yapısı hatası: $e");
+    }
+  }
+
+  // Geçici section yapıları (RSS haberleri gelene kadar)
+  List<FeaturedSectionModel> _tempSliderSections = [];
+  List<FeaturedSectionModel> _tempNewsSections = [];
+
+  /// RSS kaynaklarından haberleri çek (kullanıcı seçimine göre filtrelenmiş)
+  /// [forceRefresh] true ise cache'i atlar ve taze veri çeker
+  Future<void> fetchRssNews({bool forceRefresh = false}) async {
+    if (_isDisposed) return;
+    
+    try {
+      print("📡 RSS haberler çekiliyor... (forceRefresh: $forceRefresh)");
+      final news = await _newsService.fetchAllNews(forceRefresh: forceRefresh);
+      
+      if (!_isDisposed) {
+        rssNews.value = news;
+        print("✅ RSS'ten ${news.length} haber yüklendi");
+        
+        // RSS haberlerini FeaturedSection olarak ekle (eğer varsa)
+        if (news.isNotEmpty) {
+          _addRssNewsToSections(news);
+        }
+      }
+    } catch (e) {
+      print("❌ RSS haber çekme hatası: $e");
+    }
+  }
+
+  /// RSS haberlerini FeaturedSections'a bağla ve TEK SEFERDE göster
+  /// Pagination: Sadece ilk 15 haber gösterilir, kaydırdıkça daha fazla yüklenir
+  void _addRssNewsToSections(List<NewsModel> news) {
+    if (news.isEmpty) {
+      print("⚠️ RSS'ten haber gelmedi");
+      return;
+    }
+
+    print("🔄 RSS haberleri FeaturedSections'a bağlanıyor...");
+    print("   Section yapısı: ${_tempSliderSections.length} slider, ${_tempNewsSections.length} news");
+    print("   RSS haber sayısı: ${news.length}");
+
+    // Eski controller'ları temizle
+    _cleanupSliderControllers();
+
+    // Slider section'larını RSS haberleriyle doldur (ilk 10 haber)
+    if (_tempSliderSections.isNotEmpty) {
+      final sliderNews = news.take(10).toList();
+      final oldSlider = _tempSliderSections.first;
+      
+      sliderSections.value = [
+        FeaturedSectionModel(
+          id: oldSlider.id,
+          title: oldSlider.title,
+          type: oldSlider.type,
+          order: oldSlider.order,
+          isActive: oldSlider.isActive,
+          news: sliderNews,
+        )
+      ];
+      
+      // Slider controller oluştur
+      if (oldSlider.id != null) {
+        featuredSliderControllers[oldSlider.id!] = PageController();
+        featuredSliderIndices[oldSlider.id!] = 0;
+        _startSliderAutoScroll(oldSlider.id!);
+      }
+      
+      print("✅ Slider: ${oldSlider.title} (${sliderNews.length} haber)");
+    }
+
+    // News section - PAGINATION ile
+    if (_tempNewsSections.isNotEmpty && news.length > 10) {
+      // Tüm haberleri sakla (slider hariç)
+      _allRssNews = news.skip(10).toList();
+      
+      // Pagination state'i sıfırla
+      final totalNewsCount = _allRssNews.length;
+      final initialCount = totalNewsCount < _pageSize ? totalNewsCount : _pageSize;
+      
+      displayedNewsCount.value = initialCount;
+      hasMoreNews.value = totalNewsCount > _pageSize;
+      
+      // Sadece ilk haberleri göster (15 veya daha az)
+      final initialNews = _allRssNews.take(initialCount).toList();
+      final oldSection = _tempNewsSections.first;
+      
+      newsSections.value = [
+        FeaturedSectionModel(
+          id: oldSection.id,
+          title: oldSection.title,
+          type: oldSection.type,
+          order: oldSection.order,
+          isActive: oldSection.isActive,
+          news: initialNews,
+        )
+      ];
+      
+      print("✅ News: ${oldSection.title} (ilk $initialCount / $totalNewsCount haber, hasMore: ${hasMoreNews.value})");
+    } else {
+      // Haber yok veya çok az
+      hasMoreNews.value = false;
+      _allRssNews = [];
+    }
+
+    print("🎯 Tamamlandı! Ekranda gösteriliyor.");
+  }
+
+  /// Daha fazla haber yükle (infinite scroll için)
+  Future<void> loadMoreNews() async {
+    // Güvenlik kontrolleri
+    if (_isDisposed) return;
+    if (isLoadingMore.value) return;
+    if (!hasMoreNews.value) return;
+    if (_allRssNews.isEmpty) return;
+    
+    // Zaten tüm haberler gösteriliyorsa çık
+    if (displayedNewsCount.value >= _allRssNews.length) {
+      hasMoreNews.value = false;
+      return;
+    }
+
+    isLoadingMore.value = true;
+    
+    // Loading indicator'ın görünmesi için kısa gecikme
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    if (_isDisposed) {
+      isLoadingMore.value = false;
+      return;
+    }
+
+    // Yeni haber sayısını hesapla
+    final newCount = displayedNewsCount.value + _pageSize;
+    final actualCount = newCount > _allRssNews.length ? _allRssNews.length : newCount;
+    
+    // Haberleri güncelle
+    final updatedNews = _allRssNews.take(actualCount).toList();
+    
+    if (newsSections.isNotEmpty) {
+      final oldSection = newsSections.first;
+      newsSections[0] = FeaturedSectionModel(
+        id: oldSection.id,
+        title: oldSection.title,
+        type: oldSection.type,
+        order: oldSection.order,
+        isActive: oldSection.isActive,
+        news: updatedNews,
+      );
+    }
+
+    displayedNewsCount.value = actualCount;
+    hasMoreNews.value = actualCount < _allRssNews.length;
+    isLoadingMore.value = false;
+
+    print("📰 Daha fazla haber yüklendi: $actualCount / ${_allRssNews.length}");
+  }
+
+  /// Scroll listener - sayfa sonuna TAM gelince daha fazla yükle
+  void _onScroll() {
+    if (_isDisposed) return;
+    if (isLoadingMore.value) return;
+    if (!hasMoreNews.value) return;
+    
+    // Scroll pozisyonunu kontrol et
+    if (!scrollController.hasClients) return;
+    
+    final maxScroll = scrollController.position.maxScrollExtent;
+    final currentScroll = scrollController.position.pixels;
+    
+    // Tam sona gelince yükle (son 50 piksel - daha hassas)
+    if (maxScroll > 0 && currentScroll >= maxScroll - 50) {
+      print("📜 Sayfa sonuna gelindi, daha fazla yükleniyor...");
+      loadMoreNews();
+    }
   }
 
   @override
   void onClose() {
     _isDisposed = true;
+    
+    scrollController.removeListener(_onScroll);
 
     for (var timer in featuredSliderTimers.values) {
       timer?.cancel();
@@ -84,310 +334,6 @@ class HomeController extends GetxController {
 
     scrollController.dispose();
     super.onClose();
-  }
-
-  // ===== PANEL'DEN FEATURED SECTIONS =====
-  Future<void> fetchFeaturedSections() async {
-    if (_isDisposed) return;
-
-    try {
-      isFeaturedLoading(true);
-      isLoading(true);
-      print("🎯 Panel'den Featured Sections çekiliyor...");
-
-      final response = await _apiService.getData(
-        ApiConstants.getFeaturedSections,
-      );
-
-      print("📦 API Response: $response");
-
-      if (_isDisposed) return;
-
-      if (response != null) {
-        List<FeaturedSectionModel> allSections = [];
-
-        if (response is List) {
-          allSections = response
-              .map(
-                (item) =>
-                    FeaturedSectionModel.fromJson(item as Map<String, dynamic>),
-              )
-              .toList();
-        } else if (response is Map && response['data'] != null) {
-          allSections = (response['data'] as List)
-              .map(
-                (item) =>
-                    FeaturedSectionModel.fromJson(item as Map<String, dynamic>),
-              )
-              .toList();
-        } else if (response is Map && response['sections'] != null) {
-          allSections = (response['sections'] as List)
-              .map(
-                (item) =>
-                    FeaturedSectionModel.fromJson(item as Map<String, dynamic>),
-              )
-              .toList();
-        }
-
-        print("📋 Toplam ${allSections.length} section parse edildi");
-        for (var s in allSections) {
-          print(
-            "   - ID: ${s.id}, Title: ${s.title}, Type: ${s.type}, Active: ${s.isActive}, News: ${s.news.length}",
-          );
-        }
-
-        // Aktif olanları filtrele
-        allSections = allSections
-            .where((s) => s.isActive == true && s.news.isNotEmpty)
-            .toList();
-        allSections.sort((a, b) => (a.order ?? 0).compareTo(b.order ?? 0));
-
-        // Kullanıcının seçtiği kaynaklara göre haberleri filtrele
-        allSections = _filterSectionsByUserSources(allSections);
-
-        // Slider'ları ayır (type: slider)
-        final sliders = allSections
-            .where((s) => s.type == 'slider' && s.news.isNotEmpty)
-            .toList();
-
-        // Haber listelerini ayır (type: breaking_news, horizontal_list, vs.)
-        final newsLists = allSections
-            .where((s) => s.type != 'slider' && s.news.isNotEmpty)
-            .toList();
-
-        sliderSections.value = sliders;
-        newsSections.value = newsLists;
-
-        print("✅ ${sliders.length} slider section yüklendi");
-        print("✅ ${newsLists.length} haber section yüklendi");
-
-        // Eski controller'ları temizle
-        _cleanupSliderControllers();
-
-        // Slider'lar için controller'ları oluştur
-        for (var section in sliders) {
-          if (section.id != null) {
-            featuredSliderControllers[section.id!] = PageController();
-            featuredSliderIndices[section.id!] = 0;
-            _startSliderAutoScroll(section.id!);
-          }
-        }
-      }
-    } catch (e) {
-      print("❌ Featured Sections Hatası: $e");
-    } finally {
-      if (!_isDisposed) {
-        isFeaturedLoading(false);
-        isLoading(false);
-      }
-    }
-  }
-
-  /// Türkçe karakterleri ve özel karakterleri normalize et
-  String _normalizeForMatch(String input) {
-    const Map<String, String> turkishChars = {
-      'ı': 'i',
-      'İ': 'i',
-      'ğ': 'g',
-      'Ğ': 'g',
-      'ü': 'u',
-      'Ü': 'u',
-      'ş': 's',
-      'Ş': 's',
-      'ö': 'o',
-      'Ö': 'o',
-      'ç': 'c',
-      'Ç': 'c',
-    };
-    String normalized = input.toLowerCase().trim();
-    turkishChars.forEach((k, v) => normalized = normalized.replaceAll(k, v));
-    // Sadece harf ve rakam bırak
-    return normalized.replaceAll(RegExp(r'[^a-z0-9]'), '');
-  }
-
-  /// Kullanıcının seçtiği kaynaklara göre section'ları filtrele
-  ///
-  /// Mantık:
-  /// 1. Kullanıcının Firestore'daki selectedSources listesini al (ID'ler)
-  /// 2. ID'leri kaynak isimlerine çevir (news_sources_data.dart kullanarak)
-  /// 3. Her section'daki haberleri filtrele
-  /// 4. Boş kalan section'ları listeden çıkar
-  List<FeaturedSectionModel> _filterSectionsByUserSources(
-    List<FeaturedSectionModel> sections,
-  ) {
-    // Kullanıcının seçtiği kaynak ID'lerini al
-    final Set<String> selectedSourceIds =
-        _sourceController?.selectedSources ?? {};
-
-    // Eğer hiç kaynak seçilmemişse, tüm haberleri göster
-    if (selectedSourceIds.isEmpty) {
-      print("📰 Kaynak seçimi yok - tüm haberler gösteriliyor");
-      return sections.where((s) => s.news.isNotEmpty).toList();
-    }
-
-    // Seçili ID'leri normalize et (örn: "cnn_turk" -> "cnnturk")
-    final Set<String> selectedIdsNormalized = selectedSourceIds
-        .map((id) => _normalizeForMatch(id))
-        .toSet();
-
-    // Seçili ID'leri kaynak isimlerine çevir ve normalize et
-    final Set<String> selectedNamesNormalized = selectedSourceIds
-        .map((id) => getSourceById(id)?.name)
-        .whereType<String>()
-        .map((name) => _normalizeForMatch(name))
-        .toSet();
-
-    print(
-      "🔍 Aktif kaynaklar (${selectedSourceIds.length}): IDs=$selectedIdsNormalized, Names=$selectedNamesNormalized",
-    );
-
-    // Her section'ı filtrele
-    final List<FeaturedSectionModel> filteredSections = [];
-    int newsWithEmptySource = 0;
-
-    for (final section in sections) {
-      // Section içindeki haberleri filtrele
-      final List<NewsModel> filteredNews = section.news.where((news) {
-        final String? newsSourceName = news.sourceName?.trim();
-        final String? categoryName = news.categoryName?.trim();
-
-        // "genel" seçiliyse TÜM haberleri göster (backend düzelene kadar)
-        if (selectedIdsNormalized.contains('genel') ||
-            selectedNamesNormalized.contains('genel')) {
-          return true;
-        }
-
-        // Kaynak adını normalize et
-        String? normalizedNewsSource;
-        if (newsSourceName != null &&
-            newsSourceName.isNotEmpty &&
-            _normalizeForMatch(newsSourceName) != 'genel') {
-          normalizedNewsSource = _normalizeForMatch(newsSourceName);
-        }
-
-        // Kaynak adı varsa normal eşleştirme yap
-        if (normalizedNewsSource != null) {
-          final bool matchesId = selectedIdsNormalized.any(
-            (id) =>
-                normalizedNewsSource!.contains(id) ||
-                id.contains(normalizedNewsSource),
-          );
-          final bool matchesName = selectedNamesNormalized.any(
-            (name) =>
-                normalizedNewsSource!.contains(name) ||
-                name.contains(normalizedNewsSource),
-          );
-          if (matchesId || matchesName) return true;
-        }
-
-        // Kaynak adı yoksa categoryName ile eşleştir
-        newsWithEmptySource++;
-        if (categoryName != null && categoryName.isNotEmpty) {
-          final String normalizedCategory = _normalizeForMatch(categoryName);
-
-          // Genişletilmiş kategori → kaynak eşleştirmesi
-          final Map<String, List<String>> categoryToSourceMap = {
-            'spor': [
-              'aspor',
-              'a_spor',
-              'ntvspor',
-              'ntv_spor',
-              'sporx',
-              'fotomac',
-              'fanatik',
-              'beinsports',
-              'bein',
-            ],
-            'ekonomi': [
-              'bloomberght',
-              'bloomberg',
-              'bigpara',
-              'paraanaliz',
-              'dunya',
-              'ekonomi',
-            ],
-            'finans': ['bloomberght', 'bloomberg', 'bigpara', 'paraanaliz'],
-            'teknoloji': [
-              'webtekno',
-              'donanimhaber',
-              'shiftdelete',
-              'technopat',
-              'log',
-              'chip',
-              'tekno',
-            ],
-            'saglik': ['memorial', 'medicalpark', 'acibadem', 'saglik'],
-            'kultur': ['kulturservisi', 'arkeofili', 'kultur', 'sanat'],
-            'bilim': ['bilimfili', 'evrimagaci', 'popular', 'bilim'],
-            'gundem': [
-              'ntv',
-              'cnnturk',
-              'cnn',
-              'haberturk',
-              'trthaber',
-              'trt',
-              'ahaber',
-              'a_haber',
-            ],
-            'dunya': ['bbc', 'dw', 'euronews', 'sputnik', 'reuters'],
-            'magazin': ['magazin', 'hurriyet', 'milliyet', 'sabah'],
-            'yasam': ['yasam', 'saglik', 'kadin'],
-            'otomobil': ['otomobil', 'araba', 'oto'],
-          };
-
-          for (final entry in categoryToSourceMap.entries) {
-            if (normalizedCategory.contains(entry.key) ||
-                entry.key.contains(normalizedCategory)) {
-              for (final sourceId in entry.value) {
-                if (selectedIdsNormalized.any(
-                      (id) => id.contains(sourceId) || sourceId.contains(id),
-                    ) ||
-                    selectedNamesNormalized.any(
-                      (n) => n.contains(sourceId) || sourceId.contains(n),
-                    )) {
-                  return true;
-                }
-              }
-            }
-          }
-        }
-
-        return false;
-      }).toList();
-
-      // Eğer section'da haber kaldıysa, listeye ekle
-      if (filteredNews.isNotEmpty) {
-        filteredSections.add(
-          FeaturedSectionModel(
-            id: section.id,
-            title: section.title,
-            type: section.type,
-            order: section.order,
-            isActive: section.isActive,
-            news: filteredNews,
-          ),
-        );
-      }
-    }
-
-    final totalOriginalNews = sections.fold<int>(
-      0,
-      (sum, s) => sum + s.news.length,
-    );
-    final totalFilteredNews = filteredSections.fold<int>(
-      0,
-      (sum, s) => sum + s.news.length,
-    );
-    print(
-      "📊 Filtreleme: $totalOriginalNews haber → $totalFilteredNews haber (${sections.length} section → ${filteredSections.length} section)",
-    );
-    if (newsWithEmptySource > 0) {
-      print(
-        "⚠️ Kaynak adı boş olan $newsWithEmptySource haber gösteriliyor (backend düzeltilene kadar)",
-      );
-    }
-
-    return filteredSections;
   }
 
   void _cleanupSliderControllers() {
@@ -439,9 +385,26 @@ class HomeController extends GetxController {
     featuredSliderIndices[sectionId] = index;
   }
 
-  // Refresh
+  // Refresh - Cache'i temizle ve yeniden yükle
   Future<void> refreshNews() async {
     if (_isDisposed) return;
-    await fetchFeaturedSections();
+    print(
+      "🔄 Haberler yenileniyor... Mevcut kaynaklar: ${_sourceController?.selectedSources}",
+    );
+    
+    // Tek seferde yükle - önce her şeyi hazırla, sonra göster
+    isLoading.value = true;
+    isFeaturedLoading.value = true;
+    
+    try {
+      // 1. API'den section yapısını çek (haberler olmadan)
+      await _fetchSectionStructure();
+      
+      // 2. RSS'ten haberleri çek - forceRefresh ile cache'i atla
+      await fetchRssNews(forceRefresh: true);
+    } finally {
+      isLoading.value = false;
+      isFeaturedLoading.value = false;
+    }
   }
 }

@@ -11,6 +11,7 @@ import '../../services/notification_service.dart';
 import '../../utils/colors.dart';
 import '../../utils/date_helper.dart';
 import '../../widgets/notification_bottom_sheet.dart';
+import '../../widgets/search_filter_sheet.dart';
 import '../live_stream_view.dart';
 import '../news_detail_page.dart';
 import '../dashboard_view.dart';
@@ -45,49 +46,53 @@ class HomeView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
-                
+
                 // ===== SLIDER (PANEL'DEN - type: slider) =====
                 Obx(() {
                   if (controller.isFeaturedLoading.value) {
                     return const SizedBox(
                       height: 220,
                       child: Center(
-                        child: CircularProgressIndicator(color: AppColors.primary),
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
                       ),
                     );
                   }
-                  
+
                   if (controller.sliderSections.isEmpty) {
                     return const SizedBox.shrink();
                   }
-                  
+
                   return Column(
                     children: controller.sliderSections.map((section) {
                       return _buildFeaturedSlider(section);
                     }).toList(),
                   );
                 }),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // ===== HABER LİSTESİ (PANEL'DEN - type: breaking_news vs.) =====
                 Obx(() {
                   if (controller.isLoading.value) {
                     return const SizedBox(
                       height: 200,
                       child: Center(
-                        child: CircularProgressIndicator(color: AppColors.primary),
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
                       ),
                     );
                   }
-                  
+
                   if (controller.newsSections.isEmpty) {
                     return const SizedBox(
                       height: 200,
                       child: Center(child: Text("Haber bulunamadı.")),
                     );
                   }
-                  
+
                   return Column(
                     children: controller.newsSections.map((section) {
                       return _buildNewsSection(section);
@@ -105,7 +110,10 @@ class HomeView extends StatelessWidget {
   // Arama Sonuçları Widget'ı
   Widget _buildSearchResults(search.NewsSearchController searchController) {
     return Obx(() {
-      if (searchController.searchQuery.value.isEmpty) {
+      final isDark = Get.isDarkMode;
+      
+      // Arama boş ve filtre yok
+      if (searchController.searchQuery.value.isEmpty && !searchController.isFilterActive.value) {
         return Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -115,6 +123,18 @@ class HomeView extends StatelessWidget {
               Text(
                 'Haber aramak için yazın',
                 style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 24),
+              // Filtre butonu
+              OutlinedButton.icon(
+                onPressed: () => showSearchFilterSheet(Get.context!, searchController),
+                icon: const Icon(Icons.tune),
+                label: const Text('Gelişmiş Filtreler'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
               ),
             ],
           ),
@@ -134,6 +154,8 @@ class HomeView extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Aktif filtreler
+              _buildActiveFiltersBar(searchController, isDark),
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -168,36 +190,54 @@ class HomeView extends StatelessWidget {
         }
 
         // Hiç öneri de yoksa
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.search_off, size: 80, color: Colors.grey.shade300),
-              const SizedBox(height: 16),
-              Text(
-                'Sonuç bulunamadı',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade700,
+        return Column(
+          children: [
+            _buildActiveFiltersBar(searchController, isDark),
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.search_off, size: 80, color: Colors.grey.shade300),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Sonuç bulunamadı',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      searchController.searchQuery.value.isNotEmpty
+                          ? '"${searchController.searchQuery.value}" için sonuç yok'
+                          : 'Seçili filtrelere uygun haber bulunamadı',
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                      textAlign: TextAlign.center,
+                    ),
+                    if (searchController.isFilterActive.value) ...[
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () => searchController.clearFilters(),
+                        child: const Text('Filtreleri Temizle'),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                '"${searchController.searchQuery.value}" için sonuç yok',
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+            ),
+          ],
         );
       }
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Aktif filtreler
+          _buildActiveFiltersBar(searchController, isDark),
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
               '${searchController.searchResults.length} sonuç bulundu',
               style: TextStyle(
@@ -213,6 +253,172 @@ class HomeView extends StatelessWidget {
         ],
       );
     });
+  }
+
+  // Aktif filtreler bar'ı
+  Widget _buildActiveFiltersBar(search.NewsSearchController searchController, bool isDark) {
+    return Obx(() {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF132440) : Colors.grey.shade50,
+          border: Border(
+            bottom: BorderSide(
+              color: isDark ? const Color(0xFF2A4F67) : Colors.grey.shade200,
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            // Filtre butonu
+            GestureDetector(
+              onTap: () => showSearchFilterSheet(Get.context!, searchController),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: searchController.isFilterActive.value
+                      ? AppColors.primary.withOpacity(0.1)
+                      : (isDark ? const Color(0xFF2A4F67) : Colors.white),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: searchController.isFilterActive.value
+                        ? AppColors.primary
+                        : (isDark ? const Color(0xFF3A5F77) : Colors.grey.shade300),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.tune,
+                      size: 18,
+                      color: searchController.isFilterActive.value
+                          ? AppColors.primary
+                          : (isDark ? Colors.white70 : Colors.grey.shade600),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Filtreler',
+                      style: TextStyle(
+                        color: searchController.isFilterActive.value
+                            ? AppColors.primary
+                            : (isDark ? Colors.white70 : Colors.grey.shade600),
+                        fontWeight: searchController.isFilterActive.value
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    if (searchController.activeFilterCount > 0) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${searchController.activeFilterCount}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Aktif filtre chip'leri
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    // Tarih filtresi
+                    if (searchController.selectedDateRange.value.isNotEmpty)
+                      _buildFilterChip(
+                        _getDateRangeLabel(searchController.selectedDateRange.value),
+                        () => searchController.setDateRange(''),
+                        isDark,
+                      ),
+                    // Kategori filtreleri
+                    ...searchController.selectedCategories.map((catId) {
+                      final category = searchController.availableCategories
+                          .firstWhereOrNull((c) => c.id == catId);
+                      return _buildFilterChip(
+                        category?.name ?? catId,
+                        () => searchController.toggleCategory(catId),
+                        isDark,
+                      );
+                    }),
+                    // Kaynak filtreleri
+                    ...searchController.selectedSources.map((source) {
+                      return _buildFilterChip(
+                        source,
+                        () => searchController.toggleSource(source),
+                        isDark,
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  String _getDateRangeLabel(String range) {
+    switch (range) {
+      case 'today':
+        return 'Bugün';
+      case 'week':
+        return 'Son 7 Gün';
+      case 'month':
+        return 'Son 30 Gün';
+      case 'custom':
+        return 'Özel Tarih';
+      default:
+        return range;
+    }
+  }
+
+  Widget _buildFilterChip(String label, VoidCallback onRemove, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onRemove,
+            child: const Icon(
+              Icons.close,
+              size: 14,
+              color: AppColors.primary,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // Arama sonuçları listesi (ortak widget)
@@ -392,9 +598,10 @@ class HomeView extends StatelessWidget {
   // AppBar
   AppBar _buildAppBar(BuildContext context) {
     final searchController = Get.put(search.NewsSearchController());
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AppBar(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF1A2F47) : Colors.white,
       elevation: 0,
       scrolledUnderElevation: 0,
       toolbarHeight: 70,
@@ -416,7 +623,7 @@ class HomeView extends StatelessWidget {
       title: Obx(() {
         if (controller.isSearchOpen.value) {
           // Arama açıkken search bar göster
-          return _buildSearchBar(searchController);
+          return _buildSearchBar(searchController, isDark);
         } else {
           // Normal logo göster
           return Transform.translate(
@@ -446,7 +653,11 @@ class HomeView extends StatelessWidget {
                 controller.isSearchOpen.value = false;
                 searchController.clearSearch();
               },
-              icon: const Icon(Icons.close, color: Colors.black87, size: 28),
+              icon: Icon(
+                Icons.close, 
+                color: isDark ? Colors.white : Colors.black87, 
+                size: 28,
+              ),
             );
           } else {
             // Normal butonlar
@@ -457,9 +668,9 @@ class HomeView extends StatelessWidget {
                   onPressed: () {
                     controller.isSearchOpen.value = true;
                   },
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.search,
-                    color: Colors.black87,
+                    color: isDark ? Colors.white : Colors.black87,
                     size: 28,
                   ),
                 ),
@@ -540,12 +751,12 @@ class HomeView extends StatelessWidget {
   }
 
   // Arama Bar Widget'ı
-  Widget _buildSearchBar(search.NewsSearchController searchController) {
+  Widget _buildSearchBar(search.NewsSearchController searchController, bool isDark) {
     return Container(
       height: 45,
       margin: const EdgeInsets.only(right: 8),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: isDark ? const Color(0xFF132440) : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(25),
       ),
       child: TextField(
@@ -554,15 +765,15 @@ class HomeView extends StatelessWidget {
         onChanged: (value) => searchController.search(value),
         decoration: InputDecoration(
           hintText: 'Haber ara...',
-          hintStyle: TextStyle(color: Colors.grey.shade500),
-          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+          hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.grey.shade500),
+          prefixIcon: Icon(Icons.search, color: isDark ? Colors.white54 : Colors.grey),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 12,
           ),
         ),
-        style: const TextStyle(fontSize: 16),
+        style: TextStyle(fontSize: 16, color: isDark ? Colors.white : Colors.black87),
       ),
     );
   }
@@ -582,43 +793,50 @@ class HomeView extends StatelessWidget {
       colors: [Colors.transparent, Color(0xCC000000)],
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section Başlığı
-        if (section.title != null && section.title!.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              section.title!,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+    return Builder(
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section Başlığı
+            if (section.title != null && section.title!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  section.title!,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ),
+            SizedBox(
+              height: 220,
+              child: PageView.builder(
+                controller: pageController,
+                onPageChanged: (index) {
+                  controller.updateSliderIndex(section.id!, index);
+                  controller.update();
+                },
+                itemCount: section.news.length,
+                itemBuilder: (context, index) {
+                  final news = section.news[index];
+                  return _buildSliderItem(news, gradient);
+                },
               ),
             ),
-          ),
-        SizedBox(
-          height: 220,
-          child: PageView.builder(
-            controller: pageController,
-            onPageChanged: (index) {
-              controller.updateSliderIndex(section.id!, index);
-              controller.update();
-            },
-            itemCount: section.news.length,
-            itemBuilder: (context, index) {
-              final news = section.news[index];
-              return _buildSliderItem(news, gradient);
-            },
-          ),
-        ),
-        const SizedBox(height: 10),
-        // Slider Dots
-        GetBuilder<HomeController>(
-          builder: (_) {
-            final currentIndex = controller.featuredSliderIndices[section.id!] ?? 0;
-            final itemCount = section.news.length > 10 ? 10 : section.news.length;
+            const SizedBox(height: 10),
+            // Slider Dots
+            GetBuilder<HomeController>(
+              builder: (_) {
+            final currentIndex =
+                controller.featuredSliderIndices[section.id!] ?? 0;
+            final itemCount = section.news.length > 10
+                ? 10
+                : section.news.length;
             return Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(itemCount, (index) {
@@ -638,7 +856,9 @@ class HomeView extends StatelessWidget {
           },
         ),
         const SizedBox(height: 16),
-      ],
+          ],
+        );
+      },
     );
   }
 
@@ -680,13 +900,21 @@ class HomeView extends StatelessWidget {
                   ),
                   errorWidget: (context, url, error) => Container(
                     color: const Color(0xFF1E3A5F),
-                    child: const Icon(Icons.image, color: Colors.white54, size: 50),
+                    child: const Icon(
+                      Icons.image,
+                      color: Colors.white54,
+                      size: 50,
+                    ),
                   ),
                 )
               else
                 Container(
                   color: const Color(0xFF1E3A5F),
-                  child: const Icon(Icons.image, color: Colors.white54, size: 50),
+                  child: const Icon(
+                    Icons.image,
+                    color: Colors.white54,
+                    size: 50,
+                  ),
                 ),
               // Gradient
               DecoratedBox(decoration: BoxDecoration(gradient: gradient)),
@@ -696,7 +924,10 @@ class HomeView extends StatelessWidget {
                   top: 12,
                   left: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(6),
@@ -779,14 +1010,17 @@ class HomeView extends StatelessWidget {
     return Builder(
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Section Başlığı
             if (section.title != null && section.title!.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Text(
                   section.title!,
                   style: TextStyle(
@@ -796,7 +1030,7 @@ class HomeView extends StatelessWidget {
                   ),
                 ),
               ),
-            // Haber Listesi
+            // Haber Listesi - sadece mevcut haberleri göster
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -807,6 +1041,39 @@ class HomeView extends StatelessWidget {
                 return _buildNewsListItem(news, isDark);
               },
             ),
+            // Loading indicator - ayrı Obx içinde
+            Obx(() {
+              if (controller.isLoadingMore.value) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primary,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                );
+              }
+              
+              // Tüm haberler yüklendiyse mesaj göster
+              if (!controller.hasMoreNews.value) {
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Center(
+                    child: Text(
+                      'Tüm haberler yüklendi',
+                      style: TextStyle(
+                        color: isDark ? Colors.white54 : Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                );
+              }
+              
+              // Daha fazla haber var ama henüz yüklenmiyor - boşluk bırak
+              return const SizedBox(height: 60);
+            }),
             const SizedBox(height: 16),
           ],
         );
@@ -933,9 +1200,7 @@ class HomeView extends StatelessWidget {
                   Text(
                     DateHelper.getTimeAgo(news.date),
                     style: TextStyle(
-                      color: isDark
-                          ? Colors.white54
-                          : Colors.grey.shade500,
+                      color: isDark ? Colors.white54 : Colors.grey.shade500,
                       fontSize: 11,
                     ),
                   ),

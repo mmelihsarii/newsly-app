@@ -54,115 +54,147 @@ class LocalView extends StatelessWidget {
   }
 
   Widget _buildCitySelector(LocalController controller) {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Obx(() {
-        if (controller.isCitiesLoading.value) {
-          return const Center(
-            child: SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.primary,
+    return Builder(
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        
+        return Container(
+          height: 56,
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A2F47) : Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: isDark 
+                    ? Colors.black.withOpacity(0.2) 
+                    : Colors.black.withOpacity(0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
               ),
-            ),
-          );
-        }
-
-        // selectedCity'yi burada dinle - bu tüm listenin yeniden build edilmesini sağlar
-        final currentSelectedCity = controller.selectedCity.value;
-
-        return ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          itemCount: controller.cityList.length,
-          itemBuilder: (context, index) {
-            final city = controller.cityList[index];
-            final isSelected = currentSelectedCity?['name'] == city['name'];
-            final cityName = city['name'] ?? '';
-
-            return GestureDetector(
-              onTap: () => controller.selectCity(city),
-              child: Container(
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected
-                        ? AppColors.primary
-                        : Colors.grey.shade300,
-                    width: isSelected ? 1.5 : 1.0,
+            ],
+          ),
+          child: Obx(() {
+            if (controller.isCitiesLoading.value) {
+              return Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: isDark ? Colors.white : AppColors.primary,
                   ),
                 ),
-                child: Center(
-                  child: Text(
-                    cityName,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.w500,
-                      fontSize: 14,
+              );
+            }
+
+            // selectedCity'yi burada dinle - bu tüm listenin yeniden build edilmesini sağlar
+            final currentSelectedCity = controller.selectedCity.value;
+
+            return ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              itemCount: controller.cityList.length,
+              itemBuilder: (context, index) {
+                final city = controller.cityList[index];
+                final isSelected = currentSelectedCity?['name'] == city['name'];
+                final cityName = city['name'] ?? '';
+
+                return GestureDetector(
+                  onTap: () => controller.selectCity(city),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: isSelected 
+                          ? AppColors.primary 
+                          : (isDark ? const Color(0xFF132440) : Colors.white),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.primary
+                            : (isDark ? Colors.white24 : Colors.grey.shade300),
+                        width: isSelected ? 1.5 : 1.0,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        cityName,
+                        style: TextStyle(
+                          color: isSelected 
+                              ? Colors.white 
+                              : (isDark ? Colors.white70 : Colors.black87),
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             );
-          },
+          }),
         );
-      }),
+      },
     );
   }
 
   Widget _buildEmptyState(LocalController controller) {
     final cityName = controller.selectedCity.value?['name'] ?? 'Şehir';
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.newspaper, size: 64, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            '$cityName için haber bulunamadı',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+    return Builder(
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.newspaper, 
+                size: 64, 
+                color: isDark ? Colors.white38 : Colors.grey.shade400,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '$cityName için haber bulunamadı',
+                style: TextStyle(
+                  color: isDark ? Colors.white54 : Colors.grey.shade600, 
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () => controller.fetchLocalNews(),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Yeniden Dene'),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          TextButton.icon(
-            onPressed: () => controller.fetchLocalNews(),
-            icon: const Icon(Icons.refresh),
-            label: const Text('Yeniden Dene'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildNewsList(LocalController controller) {
-    return RefreshIndicator(
-      onRefresh: () => controller.fetchLocalNews(),
-      color: AppColors.primary,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: controller.localNewsList.length,
-        itemBuilder: (context, index) {
-          final news = controller.localNewsList[index];
-          return _buildNewsCard(news);
-        },
-      ),
+    return Builder(
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        
+        return RefreshIndicator(
+          onRefresh: () => controller.fetchLocalNews(),
+          color: AppColors.primary,
+          backgroundColor: isDark ? const Color(0xFF1A2F47) : Colors.white,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: controller.localNewsList.length,
+            itemBuilder: (context, index) {
+              final news = controller.localNewsList[index];
+              return _buildNewsCard(news);
+            },
+          ),
+        );
+      },
     );
   }
 

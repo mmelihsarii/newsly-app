@@ -9,6 +9,7 @@ import 'controllers/home_controller.dart';
 import 'controllers/interest_controller.dart';
 import 'controllers/saved_controller.dart';
 import 'controllers/theme_controller.dart';
+import 'controllers/reading_settings_controller.dart';
 import 'services/auth_service.dart';
 import 'services/user_service.dart';
 import 'services/notification_service.dart';
@@ -32,6 +33,7 @@ void main() async {
   Get.put(UserService());
   Get.put(AuthService());
   Get.put(ThemeController());
+  Get.put(ReadingSettingsController());
   Get.put(HomeController());
   Get.put(InterestController());
   Get.put(SavedController());

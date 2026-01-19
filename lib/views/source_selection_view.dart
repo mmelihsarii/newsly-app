@@ -13,6 +13,8 @@ class SourceSelectionView extends StatelessWidget {
   Widget build(BuildContext context) {
     // Üye kontrolü - üye değilse login'e yönlendir
     final authService = Get.find<AuthService>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     if (!authService.isLoggedIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Get.snackbar(
@@ -33,22 +35,22 @@ class SourceSelectionView extends StatelessWidget {
     final controller = Get.put(SourceSelectionController());
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: isDark ? const Color(0xFF132440) : Colors.grey.shade50,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: isDark ? const Color(0xFF1A2F47) : Colors.white,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: const Text(
+        title: Text(
           'Kaynak Seçimi',
           style: TextStyle(
-            color: Colors.black87,
+            color: isDark ? Colors.white : Colors.black87,
             fontSize: 20,
             fontWeight: FontWeight.w600,
           ),
         ),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black87),
+          icon: Icon(Icons.arrow_back_ios, color: isDark ? Colors.white : Colors.black87),
           onPressed: () => Get.back(),
         ),
         actions: [
@@ -79,8 +81,8 @@ class SourceSelectionView extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+              color: isDark ? const Color(0xFF1A2F47) : Colors.white,
+              border: Border(bottom: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200)),
             ),
             child: Obx(
               () => Row(
@@ -93,7 +95,7 @@ class SourceSelectionView extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     '${controller.totalSelectedCount} / ${controller.totalSourcesCount} kaynak seçili',
-                    style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+                    style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade700, fontSize: 14),
                   ),
                 ],
               ),
@@ -109,7 +111,7 @@ class SourceSelectionView extends StatelessWidget {
               itemCount: kNewsSources.length,
               itemBuilder: (context, index) {
                 final category = kNewsSources[index];
-                return _buildCategorySection(controller, category);
+                return _buildCategorySection(controller, category, isDark);
               },
             ),
           ),
@@ -117,7 +119,7 @@ class SourceSelectionView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1A2F47) : Colors.white,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -137,7 +139,7 @@ class SourceSelectionView extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFF4220B),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey.shade300,
+                    disabledBackgroundColor: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
@@ -164,6 +166,7 @@ class SourceSelectionView extends StatelessWidget {
   Widget _buildCategorySection(
     SourceSelectionController controller,
     NewsSourceCategory category,
+    bool isDark,
   ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -174,8 +177,8 @@ class SourceSelectionView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+              color: isDark ? const Color(0xFF1A2F47) : Colors.white,
+              border: Border(bottom: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200)),
             ),
             child: Row(
               children: [
@@ -194,10 +197,10 @@ class SourceSelectionView extends StatelessWidget {
                     children: [
                       Text(
                         category.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
                       Obx(
@@ -205,7 +208,7 @@ class SourceSelectionView extends StatelessWidget {
                           '${controller.getSelectedCountInCategory(category.id)} / ${category.sources.length} seçili',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey.shade600,
+                            color: isDark ? Colors.white54 : Colors.grey.shade600,
                           ),
                         ),
                       ),
@@ -232,7 +235,7 @@ class SourceSelectionView extends StatelessWidget {
                       size: 20,
                       color: isFullySelected || isPartiallySelected
                           ? category.color
-                          : Colors.grey.shade400,
+                          : (isDark ? Colors.white38 : Colors.grey.shade400),
                     ),
                     label: Text(
                       isFullySelected ? 'Kaldır' : 'Tümünü Seç',
@@ -249,13 +252,13 @@ class SourceSelectionView extends StatelessWidget {
           ),
           // Sources Grid
           Container(
-            color: Colors.white,
+            color: isDark ? const Color(0xFF1A2F47) : Colors.white,
             padding: const EdgeInsets.all(12),
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
               children: category.sources.map((source) {
-                return _buildSourceChip(controller, source, category.color);
+                return _buildSourceChip(controller, source, category.color, isDark);
               }).toList(),
             ),
           ),
@@ -268,6 +271,7 @@ class SourceSelectionView extends StatelessWidget {
     SourceSelectionController controller,
     NewsSourceItem source,
     Color categoryColor,
+    bool isDark,
   ) {
     return Obx(() {
       final isSelected = controller.isSourceSelected(source.id);
@@ -280,10 +284,10 @@ class SourceSelectionView extends StatelessWidget {
           decoration: BoxDecoration(
             color: isSelected
                 ? categoryColor.withOpacity(0.1)
-                : Colors.grey.shade100,
+                : (isDark ? const Color(0xFF132440) : Colors.grey.shade100),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isSelected ? categoryColor : Colors.grey.shade300,
+              color: isSelected ? categoryColor : (isDark ? Colors.white24 : Colors.grey.shade300),
               width: isSelected ? 1.5 : 1,
             ),
           ),
@@ -299,7 +303,7 @@ class SourceSelectionView extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: isSelected ? categoryColor : Colors.grey.shade700,
+                  color: isSelected ? categoryColor : (isDark ? Colors.white70 : Colors.grey.shade700),
                 ),
               ),
             ],

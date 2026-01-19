@@ -10,7 +10,8 @@
 
 // ============================================
 // FLUTTER API - GÜNCELLENMİŞ FONKSİYON
-// ============================================
+// ============================================/*
+/*
 public function getFeaturedSectionsForApp(Request $request)
 {
     try {
@@ -218,6 +219,7 @@ public function getFeaturedSectionsForApp(Request $request)
 /**
  * Domain adından kaynak adını döndür
  */
+/*
 private function getDomainSourceName($host)
 {
     $domainMap = [
@@ -238,7 +240,7 @@ private function getDomainSourceName($host)
         'cumhuriyet.com.tr' => 'Cumhuriyet',
         'birgun.net' => 'BirGün',
         'evrensel.net' => 'Evrensel',
-        
+
         // TV Kanalları
         'ntv.com.tr' => 'NTV',
         'cnnturk.com' => 'CNN Türk',
@@ -247,57 +249,57 @@ private function getDomainSourceName($host)
         'ahaber.com.tr' => 'A Haber',
         'haberglobal.com.tr' => 'Haber Global',
         'tgrthaber.com.tr' => 'TGRT Haber',
-        
+
         // Spor
         'aspor.com.tr' => 'A Spor',
         'fotomac.com.tr' => 'Fotomaç',
         'fanatik.com.tr' => 'Fanatik',
         'ntvspor.net' => 'NTV Spor',
         'sporx.com' => 'Sporx',
-        
+
         // Teknoloji
         'webtekno.com' => 'Webtekno',
         'teknoblog.com' => 'Teknoblog',
         'donanimhaber.com' => 'Donanım Haber',
         'technopat.net' => 'Technopat',
         'webrazzi.com' => 'Webrazzi',
-        
+
         // Ekonomi
         'bloomberght.com' => 'Bloomberg HT',
         'bigpara.hurriyet.com.tr' => 'BigPara',
         'paraanaliz.com' => 'Para Analiz',
-        
+
         // Dijital Medya
         't24.com.tr' => 'T24',
         'odatv.com' => 'Oda TV',
         'diken.com.tr' => 'Diken',
         'gazeteduvar.com.tr' => 'Gazete Duvar',
         'medyascope.tv' => 'Medyascope',
-        
+
         // Uluslararası
         'bbc.com' => 'BBC Türkçe',
         'dw.com' => 'DW Haber',
         'tr.euronews.com' => 'Euronews',
         'tr.sputniknews.com' => 'Sputnik',
-        
+
         // Haber Portalları
         'haber7.com' => 'Haber 7',
         'haberler.com' => 'Haberler.com',
         'internethaber.com' => 'İnternet Haber',
         'ensonhaber.com' => 'En Son Haber',
         'mynet.com' => 'Mynet',
-        
+
         // Ajanslar
         'aa.com.tr' => 'Anadolu Ajansı',
         'iha.com.tr' => 'İHA',
         'dha.com.tr' => 'DHA',
     ];
-    
+
     // Tam eşleşme
     if (isset($domainMap[$host])) {
         return $domainMap[$host];
     }
-    
+
     // Kısmi eşleşme (subdomain'ler için)
     foreach ($domainMap as $domain => $name) {
         $domainBase = str_replace(['.com.tr', '.com', '.net', '.org', '.tv'], '', $domain);
@@ -305,7 +307,7 @@ private function getDomainSourceName($host)
             return $name;
         }
     }
-    
+
     // Bulunamazsa domain adının ilk kısmını döndür
     $parts = explode('.', $host);
     return ucfirst($parts[0] ?? 'Bilinmeyen');

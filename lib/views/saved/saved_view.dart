@@ -31,35 +31,102 @@ class SavedView extends StatelessWidget {
         }
 
         // Kaydedilen haberler listesi
-        return ListView.builder(
-          padding: const EdgeInsets.only(top: 8, bottom: 16),
-          itemCount: controller.savedNewsList.length,
-          itemBuilder: (context, index) {
-            final news = controller.savedNewsList[index];
-            return Dismissible(
-              key: Key(news.title ?? index.toString()),
-              direction: DismissDirection.endToStart,
-              background: Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 20),
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade400,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.delete_outline,
-                  color: Colors.white,
-                  size: 28,
-                ),
+        return Column(
+          children: [
+            // Offline okuma bilgi banner'ı
+            Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.withOpacity(0.3)),
               ),
-              onDismissed: (_) => controller.removeNews(news),
-              child: NewsCard(
-                news: news,
-                onTap: () => Get.to(() => NewsDetailPage(news: news)),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.offline_pin,
+                      color: Colors.green,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Offline Okuma',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Colors.green,
+                          ),
+                        ),
+                        Text(
+                          '${controller.savedNewsList.length} haber kaydedildi',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.green.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Tümünü temizle butonu
+                  if (controller.savedNewsList.isNotEmpty)
+                    IconButton(
+                      onPressed: () => _showClearAllDialog(context, controller),
+                      icon: Icon(
+                        Icons.delete_sweep,
+                        color: Colors.grey.shade600,
+                        size: 22,
+                      ),
+                      tooltip: 'Tümünü Temizle',
+                    ),
+                ],
               ),
-            );
-          },
+            ),
+            // Haber listesi
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.only(bottom: 16),
+                itemCount: controller.savedNewsList.length,
+                itemBuilder: (context, index) {
+                  final news = controller.savedNewsList[index];
+                  return Dismissible(
+                    key: Key(news.title ?? index.toString()),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade400,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    onDismissed: (_) => controller.removeNews(news),
+                    child: NewsCard(
+                      news: news,
+                      onTap: () => Get.to(() => NewsDetailPage(news: news)),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         );
       }),
     );
@@ -92,7 +159,7 @@ class SavedView extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Kaydedilenler',
+                  'Offline Okuma',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -101,18 +168,87 @@ class SavedView extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Kaydettiğiniz haberler burada görünecek.\nHaberlerdeki kaydet butonuna tıklayarak\nfavori haberlerinizi saklayabilirsiniz.',
+                  'Kaydettiğiniz haberler burada görünecek.\nİnternet olmadan da okuyabilirsiniz.\nHaberlerdeki kaydet butonuna tıklayarak\nfavori haberlerinizi saklayabilirsiniz.',
                   style: TextStyle(
                     color: isDark ? Colors.white54 : Colors.grey.shade600,
                     fontSize: 15,
                   ),
                   textAlign: TextAlign.center,
                 ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.offline_pin, color: Colors.green, size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'Offline kullanılabilir',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  void _showClearAllDialog(BuildContext context, SavedController controller) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1A2F47) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Tümünü Temizle',
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+        ),
+        content: Text(
+          'Kaydedilen tüm haberler silinecek. Bu işlem geri alınamaz.',
+          style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'İptal',
+              style: TextStyle(color: isDark ? Colors.white54 : Colors.grey),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              controller.clearAll();
+              Navigator.pop(context);
+              Get.snackbar(
+                'Temizlendi',
+                'Tüm kaydedilen haberler silindi',
+                snackPosition: SnackPosition.BOTTOM,
+                backgroundColor: Colors.green,
+                colorText: Colors.white,
+                duration: const Duration(seconds: 2),
+              );
+            },
+            child: const Text(
+              'Temizle',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

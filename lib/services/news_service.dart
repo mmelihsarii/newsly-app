@@ -8,11 +8,13 @@ import 'package:xml/xml.dart';
 import 'package:intl/intl.dart';
 import 'package:get_storage/get_storage.dart';
 import '../models/news_model.dart';
+import 'cache_service.dart';
 
 class NewsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GetStorage _storage = GetStorage();
+  final CacheService _cacheService = CacheService();
 
   /// Get current user ID
   String? get _userId => _auth.currentUser?.uid;
@@ -189,12 +191,27 @@ class NewsService {
   }
 
   // 2. Tüm kaynaklardan haberleri çek ve birleştir
-  Future<List<NewsModel>> fetchAllNews() async {
+  Future<List<NewsModel>> fetchAllNews({bool forceRefresh = false}) async {
+    // Cache kontrolü - force refresh değilse ve cache geçerliyse cache'den oku
+    if (!forceRefresh && _cacheService.isNewsCacheValid()) {
+      final cachedNews = _cacheService.getCachedNews();
+      if (cachedNews != null && cachedNews.isNotEmpty) {
+        print("⚡ Cache'den ${cachedNews.length} haber yüklendi (hızlı)");
+        return cachedNews;
+      }
+    }
+
     List<NewsModel> allNews = [];
     List<Map<String, dynamic>> sources = await fetchNewsSources();
 
     if (sources.isEmpty) {
       print("⚠️ Hiç aktif kaynak bulunamadı.");
+      // Cache'de eski veri varsa onu döndür
+      final cachedNews = _cacheService.getCachedNews();
+      if (cachedNews != null && cachedNews.isNotEmpty) {
+        print("📦 Kaynak yok, eski cache kullanılıyor");
+        return cachedNews;
+      }
       return [];
     }
 
@@ -228,7 +245,18 @@ class NewsService {
     allNews = _sortNewsByDate(allNews);
     print("📅 Haberler kronolojik olarak sıralandı");
 
+    // Cache'e kaydet
+    if (allNews.isNotEmpty) {
+      await _cacheService.cacheNews(allNews);
+    }
+
     return allNews;
+  }
+
+  /// Cache'i temizle ve yeniden yükle
+  Future<List<NewsModel>> refreshNews() async {
+    await _cacheService.clearNewsCache();
+    return fetchAllNews(forceRefresh: true);
   }
 
   // Haberleri tarihe göre sırala (en yeni en üstte)

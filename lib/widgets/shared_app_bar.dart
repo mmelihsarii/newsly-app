@@ -160,10 +160,11 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
   @override
   Widget build(BuildContext context) {
     final authService = Get.find<AuthService>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Drawer(
       child: Container(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1A2F47) : Colors.white,
         child: SafeArea(
           child: Column(
             children: [
@@ -235,6 +236,7 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                       _buildMenuItem(
                         icon: Icons.person_outline,
                         title: 'Profil',
+                        isDark: isDark,
                         onTap: () {
                           Get.back();
                           Get.to(() => const ProfileView());
@@ -243,6 +245,7 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                       _buildMenuItem(
                         icon: Icons.source_outlined,
                         title: 'Kaynak Seçimi',
+                        isDark: isDark,
                         onTap: () {
                           Get.back();
                           // Üye kontrolü - üye değilse login'e yönlendir
@@ -261,12 +264,13 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                           }
                         },
                       ),
-                      const Divider(height: 1),
+                      Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
                       // Yasal Metinler - Dropdown
                       _buildExpandableMenuItem(
                         icon: Icons.gavel_outlined,
                         title: 'Yasal Metinler',
                         isExpanded: _isLegalExpanded,
+                        isDark: isDark,
                         onTap: () {
                           setState(() {
                             _isLegalExpanded = !_isLegalExpanded;
@@ -275,6 +279,7 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                         children: [
                           _buildSubMenuItem(
                             title: 'KVKK',
+                            isDark: isDark,
                             onTap: () {
                               Get.back();
                               Get.to(
@@ -287,6 +292,7 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                           ),
                           _buildSubMenuItem(
                             title: 'Kişisel Verilerin Saklama ve İmha Etme',
+                            isDark: isDark,
                             onTap: () {
                               Get.back();
                               Get.to(
@@ -301,6 +307,7 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                           ),
                           _buildSubMenuItem(
                             title: 'Çerez Politikası',
+                            isDark: isDark,
                             onTap: () {
                               Get.back();
                               Get.to(
@@ -313,6 +320,7 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                           ),
                           _buildSubMenuItem(
                             title: 'Hakkımızda',
+                            isDark: isDark,
                             onTap: () {
                               Get.back();
                               Get.to(
@@ -325,6 +333,7 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                           ),
                           _buildSubMenuItem(
                             title: 'İletişim',
+                            isDark: isDark,
                             onTap: () {
                               Get.back();
                               Get.to(
@@ -337,6 +346,7 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                           ),
                           _buildSubMenuItem(
                             title: 'Şartlar & Koşullar',
+                            isDark: isDark,
                             onTap: () {
                               Get.back();
                               Get.to(
@@ -349,6 +359,7 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                           ),
                           _buildSubMenuItem(
                             title: 'Gizlilik Politikası',
+                            isDark: isDark,
                             onTap: () {
                               Get.back();
                               Get.to(
@@ -361,7 +372,7 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                           ),
                         ],
                       ),
-                      const Divider(height: 1),
+                      Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
                     ],
                   ),
                 ),
@@ -374,6 +385,7 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                     icon: Icons.login,
                     title: 'Giriş Yap',
                     color: const Color(0xFFF4220B),
+                    isDark: isDark,
                     onTap: () {
                       Get.back();
                       Get.to(() => LoginView());
@@ -384,6 +396,7 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                   icon: Icons.logout,
                   title: 'Çıkış Yap',
                   color: Colors.red,
+                  isDark: isDark,
                   onTap: () async {
                     Get.back();
                     await authService.signOut();
@@ -403,18 +416,19 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
+    required bool isDark,
     Color? color,
   }) {
     return ListTile(
-      leading: Icon(icon, color: color ?? const Color(0xFF1E3A5F)),
+      leading: Icon(icon, color: color ?? (isDark ? Colors.white70 : const Color(0xFF1E3A5F))),
       title: Text(
         title,
         style: TextStyle(
-          color: color ?? Colors.black87,
+          color: color ?? (isDark ? Colors.white : Colors.black87),
           fontWeight: FontWeight.w500,
         ),
       ),
-      trailing: Icon(Icons.chevron_right, color: Colors.grey.shade400),
+      trailing: Icon(Icons.chevron_right, color: isDark ? Colors.white38 : Colors.grey.shade400),
       onTap: onTap,
     );
   }
@@ -425,29 +439,30 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
     required bool isExpanded,
     required VoidCallback onTap,
     required List<Widget> children,
+    required bool isDark,
   }) {
     return Column(
       children: [
         ListTile(
-          leading: Icon(icon, color: const Color(0xFF1E3A5F)),
+          leading: Icon(icon, color: isDark ? Colors.white70 : const Color(0xFF1E3A5F)),
           title: Text(
             title,
-            style: const TextStyle(
-              color: Colors.black87,
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
               fontWeight: FontWeight.w500,
             ),
           ),
           trailing: AnimatedRotation(
             turns: isExpanded ? 0.5 : 0,
             duration: const Duration(milliseconds: 200),
-            child: Icon(Icons.keyboard_arrow_down, color: Colors.grey.shade400),
+            child: Icon(Icons.keyboard_arrow_down, color: isDark ? Colors.white38 : Colors.grey.shade400),
           ),
           onTap: onTap,
         ),
         AnimatedCrossFade(
           firstChild: const SizedBox.shrink(),
           secondChild: Container(
-            color: Colors.grey.shade50,
+            color: isDark ? const Color(0xFF132440) : Colors.grey.shade50,
             child: Column(children: children),
           ),
           crossFadeState: isExpanded
@@ -462,20 +477,21 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
   Widget _buildSubMenuItem({
     required String title,
     required VoidCallback onTap,
+    required bool isDark,
   }) {
     return ListTile(
       contentPadding: const EdgeInsets.only(left: 72, right: 16),
       title: Text(
         title,
         style: TextStyle(
-          color: Colors.grey.shade700,
+          color: isDark ? Colors.white70 : Colors.grey.shade700,
           fontSize: 14,
           fontWeight: FontWeight.w400,
         ),
       ),
       trailing: Icon(
         Icons.chevron_right,
-        color: Colors.grey.shade300,
+        color: isDark ? Colors.white24 : Colors.grey.shade300,
         size: 18,
       ),
       onTap: onTap,

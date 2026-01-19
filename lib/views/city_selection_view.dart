@@ -82,8 +82,10 @@ class _CitySelectionViewState extends State<CitySelectionView> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF1A2F47) : Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -95,13 +97,13 @@ class _CitySelectionViewState extends State<CitySelectionView> {
                 children: [
                   IconButton(
                     onPressed: _goBack,
-                    icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                    icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black87),
                   ),
                   TextButton(
                     onPressed: _skip,
-                    child: const Text(
+                    child: Text(
                       'Geç',
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                      style: TextStyle(color: isDark ? Colors.white54 : Colors.grey, fontSize: 16),
                     ),
                   ),
                 ],
@@ -113,12 +115,12 @@ class _CitySelectionViewState extends State<CitySelectionView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Şehrinizi\nseçin.',
                     style: TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E3A5F),
+                      color: isDark ? Colors.white : const Color(0xFF1E3A5F),
                       height: 1.1,
                     ),
                   ),
@@ -126,19 +128,20 @@ class _CitySelectionViewState extends State<CitySelectionView> {
                   // Search Field
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: isDark ? const Color(0xFF132440) : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: TextField(
                       controller: _searchController,
                       onChanged: (value) =>
                           setState(() => _searchQuery = value),
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                       decoration: InputDecoration(
                         hintText: 'Şehir ara',
-                        hintStyle: TextStyle(color: Colors.grey.shade400),
+                        hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade400),
                         prefixIcon: Icon(
                           Icons.search,
-                          color: Colors.grey.shade400,
+                          color: isDark ? Colors.white38 : Colors.grey.shade400,
                         ),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(
@@ -173,12 +176,12 @@ class _CitySelectionViewState extends State<CitySelectionView> {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? const Color(0xFFF4220B).withOpacity(0.1)
-                            : Colors.white,
+                            : (isDark ? const Color(0xFF132440) : Colors.white),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: isSelected
                               ? const Color(0xFFF4220B)
-                              : Colors.grey.shade200,
+                              : (isDark ? Colors.white12 : Colors.grey.shade200),
                           width: isSelected ? 2 : 1,
                         ),
                       ),
@@ -191,14 +194,14 @@ class _CitySelectionViewState extends State<CitySelectionView> {
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? const Color(0xFFF4220B).withOpacity(0.1)
-                                  : Colors.grey.shade100,
+                                  : (isDark ? const Color(0xFF1A2F47) : Colors.grey.shade100),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
                               Icons.location_city,
                               color: isSelected
                                   ? const Color(0xFFF4220B)
-                                  : Colors.grey.shade500,
+                                  : (isDark ? Colors.white54 : Colors.grey.shade500),
                               size: 22,
                             ),
                           ),
@@ -212,7 +215,7 @@ class _CitySelectionViewState extends State<CitySelectionView> {
                                 fontWeight: isSelected
                                     ? FontWeight.w600
                                     : FontWeight.w500,
-                                color: Colors.black87,
+                                color: isDark ? Colors.white : Colors.black87,
                               ),
                             ),
                           ),
@@ -241,7 +244,7 @@ class _CitySelectionViewState extends State<CitySelectionView> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFF4220B),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey.shade300,
+                    disabledBackgroundColor: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),

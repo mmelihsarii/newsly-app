@@ -15,9 +15,10 @@ class LiveStreamView extends StatelessWidget {
   Widget build(BuildContext context) {
     // Service'i register et
     final controller = Get.put(LiveStreamService());
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: isDark ? const Color(0xFF1A2F47) : const Color(0xFFF8F9FA),
       appBar: _buildAppBar(context, controller),
       body: Obx(() {
         if (controller.isLoading.value && controller.streams.isEmpty) {
@@ -27,11 +28,11 @@ class LiveStreamView extends StatelessWidget {
         }
 
         if (controller.error.value.isNotEmpty && controller.streams.isEmpty) {
-          return _buildErrorState(controller);
+          return _buildErrorState(controller, isDark);
         }
 
         if (controller.streams.isEmpty) {
-          return _buildEmptyState();
+          return _buildEmptyState(isDark);
         }
 
         return RefreshIndicator(
@@ -42,7 +43,7 @@ class LiveStreamView extends StatelessWidget {
             itemCount: controller.streams.length,
             itemBuilder: (context, index) {
               final stream = controller.streams[index];
-              return _LiveStreamCard(stream: stream);
+              return _LiveStreamCard(stream: stream, isDark: isDark);
             },
           ),
         );
@@ -50,7 +51,7 @@ class LiveStreamView extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -58,28 +59,28 @@ class LiveStreamView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: isDark ? const Color(0xFF132440) : Colors.grey.shade100,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.live_tv_outlined,
               size: 64,
-              color: Colors.grey.shade400,
+              color: isDark ? Colors.white38 : Colors.grey.shade400,
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Şu an canlı yayın yok',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Yeni canlı yayınlar eklendiğinde\nburada görünecek',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 14, color: isDark ? Colors.white54 : Colors.grey.shade600),
             textAlign: TextAlign.center,
           ),
         ],
@@ -87,16 +88,16 @@ class LiveStreamView extends StatelessWidget {
     );
   }
 
-  Widget _buildErrorState(LiveStreamService controller) {
+  Widget _buildErrorState(LiveStreamService controller, bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline, size: 64, color: Colors.grey.shade400),
+          Icon(Icons.error_outline, size: 64, color: isDark ? Colors.white38 : Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
             controller.error.value,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+            style: TextStyle(color: isDark ? Colors.white54 : Colors.grey.shade600, fontSize: 16),
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
@@ -198,8 +199,9 @@ class LiveStreamView extends StatelessWidget {
 
 class _LiveStreamCard extends StatelessWidget {
   final LiveStream stream;
+  final bool isDark;
 
-  const _LiveStreamCard({required this.stream});
+  const _LiveStreamCard({required this.stream, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -208,11 +210,11 @@ class _LiveStreamCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF132440) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -328,7 +330,7 @@ class _LiveStreamCard extends StatelessWidget {
                       margin: const EdgeInsets.only(right: 12),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade200),
+                        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
@@ -336,8 +338,8 @@ class _LiveStreamCard extends StatelessWidget {
                           imageUrl: stream.logoUrl!,
                           fit: BoxFit.cover,
                           errorWidget: (_, __, ___) => Container(
-                            color: Colors.grey.shade100,
-                            child: const Icon(Icons.tv, color: Colors.grey),
+                            color: isDark ? const Color(0xFF1A2F47) : Colors.grey.shade100,
+                            child: Icon(Icons.tv, color: isDark ? Colors.white38 : Colors.grey),
                           ),
                         ),
                       ),
@@ -364,10 +366,10 @@ class _LiveStreamCard extends StatelessWidget {
                       children: [
                         Text(
                           stream.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: isDark ? Colors.white : Colors.black87,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -379,7 +381,7 @@ class _LiveStreamCard extends StatelessWidget {
                             stream.sourceName!,
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey.shade600,
+                              color: isDark ? Colors.white54 : Colors.grey.shade600,
                             ),
                           ),
                         ],
@@ -389,7 +391,7 @@ class _LiveStreamCard extends StatelessWidget {
                   // Arrow
                   Icon(
                     Icons.arrow_forward_ios,
-                    color: Colors.grey.shade400,
+                    color: isDark ? Colors.white38 : Colors.grey.shade400,
                     size: 16,
                   ),
                 ],

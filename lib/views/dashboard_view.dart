@@ -9,12 +9,18 @@ import 'saved/saved_view.dart';
 import 'profile/profile_view.dart';
 
 // Global key for accessing scaffold from anywhere
+// This key is created once and should not change
 final GlobalKey<ScaffoldState> mainScaffoldKey = GlobalKey<ScaffoldState>();
 
-class DashboardView extends StatelessWidget {
-  DashboardView({super.key});
+class DashboardView extends StatefulWidget {
+  const DashboardView({super.key});
 
-  final DashboardController controller = Get.put(DashboardController());
+  @override
+  State<DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends State<DashboardView> {
+  late final DashboardController controller;
 
   // Tab item'ları (ikon, label) - 5 normal item
   final List<Map<String, dynamic>> _navItems = const [
@@ -42,13 +48,20 @@ class DashboardView extends StatelessWidget {
   ];
 
   // View'ları bir kere oluştur (rebuild önleme)
-  final List<Widget> _pages = [
-    HomeView(),
-    const LocalView(),
-    const FollowView(),
-    const SavedView(),
-    const ProfileView(),
-  ];
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(DashboardController());
+    _pages = [
+      HomeView(),
+      const LocalView(),
+      const FollowView(),
+      const SavedView(),
+      const ProfileView(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {

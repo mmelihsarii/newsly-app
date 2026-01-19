@@ -94,6 +94,12 @@ class NewsModel {
       } catch (_) {}
     }
 
+    // Eğer sourceName hala boşsa, categoryName'i kullan (filtreleme için önemli!)
+    final String? categoryNameValue = json['categoryName'] ?? json['category_name'];
+    if ((sourceNameValue == null || sourceNameValue.isEmpty) && categoryNameValue != null) {
+      sourceNameValue = categoryNameValue;
+    }
+
     // Tarih parse etme
     DateTime? parsedDate;
     if (json['published_at'] != null) {
@@ -109,7 +115,7 @@ class NewsModel {
       title: json['title'],
       image: imageUrl,
       date: json['date'],
-      categoryName: json['categoryName'] ?? json['category_name'],
+      categoryName: categoryNameValue,
       description: json['description'],
       type: json['content_type'] ?? json['type'],
       contentValue: json['content_value'] ?? json['contentValue'],
@@ -135,6 +141,9 @@ class NewsModel {
       'publishedAt': publishedAt?.toIso8601String(),
     };
   }
+
+  // Cache için JSON dönüşümü (toStorageJson ile aynı)
+  Map<String, dynamic> toJson() => toStorageJson();
 
   // --- 3. DÜZELTME: Storage OKUMA (sourceName Eklendi) ---
   factory NewsModel.fromStorageJson(Map<String, dynamic> json) {

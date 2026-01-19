@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import '../models/news_model.dart';
 import '../services/news_service.dart';
+import '../utils/news_sources_data.dart';
 
 class NewsSearchController extends GetxController {
   final NewsService _newsService = NewsService();
@@ -10,10 +11,43 @@ class NewsSearchController extends GetxController {
   // Reaktif değişkenler
   var isSearching = false.obs;
   var searchResults = <NewsModel>[].obs;
-  var suggestedResults = <NewsModel>[].obs; // Önerilen sonuçlar
+  var suggestedResults = <NewsModel>[].obs;
   var allNews = <NewsModel>[].obs;
   var searchQuery = ''.obs;
-  var hasExactMatch = false.obs; // Tam eşleşme var mı
+  var hasExactMatch = false.obs;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GELİŞMİŞ FİLTRELER
+  // ═══════════════════════════════════════════════════════════════════════════
+  var isFilterActive = false.obs;
+  
+  // Tarih filtreleri
+  var startDate = Rxn<DateTime>();
+  var endDate = Rxn<DateTime>();
+  var selectedDateRange = ''.obs; // 'today', 'week', 'month', 'custom'
+  
+  // Kategori filtreleri
+  var selectedCategories = <String>{}.obs;
+  
+  // Kaynak filtreleri
+  var selectedSources = <String>{}.obs;
+  
+  // Sıralama
+  var sortBy = 'date'.obs; // 'date', 'relevance'
+  var sortOrder = 'desc'.obs; // 'asc', 'desc'
+
+  // Mevcut kategoriler ve kaynaklar (UI için)
+  List<NewsSourceCategory> get availableCategories => kNewsSources;
+  
+  List<String> get availableSources {
+    final sources = <String>{};
+    for (final news in allNews) {
+      if (news.sourceName != null && news.sourceName!.isNotEmpty) {
+        sources.add(news.sourceName!);
+      }
+    }
+    return sources.toList()..sort();
+  }
 
   @override
   void onInit() {
@@ -27,7 +61,6 @@ class NewsSearchController extends GetxController {
     super.onClose();
   }
 
-  // Tüm haberleri yükle (arama için)
   Future<void> _loadAllNews() async {
     try {
       final news = await _newsService.fetchAllNews();
@@ -37,7 +70,6 @@ class NewsSearchController extends GetxController {
     }
   }
 
-  // Türkçe karakterleri normalize et
   String _normalizeText(String text) {
     return text
         .toLowerCase()
@@ -55,13 +87,129 @@ class NewsSearchController extends GetxController {
         .replaceAll('Ç', 'c');
   }
 
-  // Arama yap (SEO optimized, fuzzy search)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FİLTRE FONKSİYONLARI
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  /// Tarih aralığı seç
+  void setDateRange(String range) {
+    selectedDateRange.value = range;
+    final now = DateTime.now();
+    
+    switch (range) {
+      case 'today':
+        startDate.value = DateTime(now.year, now.month, now.day);
+        endDate.value = now;
+        break;
+      case 'week':
+        startDate.value = now.subtract(const Duration(days: 7));
+        endDate.value = now;
+        break;
+      case 'month':
+        startDate.value = now.subtract(const Duration(days: 30));
+        endDate.value = now;
+        break;
+      case 'custom':
+        // Custom için UI'dan tarih seçilecek
+        break;
+      default:
+        startDate.value = null;
+        endDate.value = null;
+    }
+    
+    _updateFilterStatus();
+    _applyFilters();
+  }
+
+  /// Özel tarih aralığı seç
+  void setCustomDateRange(DateTime start, DateTime end) {
+    selectedDateRange.value = 'custom';
+    startDate.value = start;
+    endDate.value = end;
+    _updateFilterStatus();
+    _applyFilters();
+  }
+
+  /// Kategori toggle
+  void toggleCategory(String categoryId) {
+    if (selectedCategories.contains(categoryId)) {
+      selectedCategories.remove(categoryId);
+    } else {
+      selectedCategories.add(categoryId);
+    }
+    _updateFilterStatus();
+    _applyFilters();
+  }
+
+  /// Kaynak toggle
+  void toggleSource(String sourceName) {
+    if (selectedSources.contains(sourceName)) {
+      selectedSources.remove(sourceName);
+    } else {
+      selectedSources.add(sourceName);
+    }
+    _updateFilterStatus();
+    _applyFilters();
+  }
+
+  /// Sıralama değiştir
+  void setSortBy(String sort) {
+    sortBy.value = sort;
+    _applyFilters();
+  }
+
+  /// Sıralama yönü değiştir
+  void toggleSortOrder() {
+    sortOrder.value = sortOrder.value == 'desc' ? 'asc' : 'desc';
+    _applyFilters();
+  }
+
+  /// Tüm filtreleri temizle
+  void clearFilters() {
+    startDate.value = null;
+    endDate.value = null;
+    selectedDateRange.value = '';
+    selectedCategories.clear();
+    selectedSources.clear();
+    sortBy.value = 'date';
+    sortOrder.value = 'desc';
+    isFilterActive.value = false;
+    
+    // Mevcut arama varsa tekrar uygula
+    if (searchQuery.value.isNotEmpty) {
+      search(searchQuery.value);
+    } else {
+      searchResults.clear();
+    }
+  }
+
+  /// Filtre durumunu güncelle
+  void _updateFilterStatus() {
+    isFilterActive.value = startDate.value != null ||
+        endDate.value != null ||
+        selectedCategories.isNotEmpty ||
+        selectedSources.isNotEmpty;
+  }
+
+  /// Aktif filtre sayısı
+  int get activeFilterCount {
+    int count = 0;
+    if (startDate.value != null || endDate.value != null) count++;
+    count += selectedCategories.length;
+    count += selectedSources.length;
+    return count;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ANA ARAMA FONKSİYONU
+  // ═══════════════════════════════════════════════════════════════════════════
+
   void search(String query) {
     searchQuery.value = query.trim();
     suggestedResults.clear();
     hasExactMatch.value = false;
 
-    if (searchQuery.value.isEmpty) {
+    if (searchQuery.value.isEmpty && !isFilterActive.value) {
       searchResults.clear();
       return;
     }
@@ -69,15 +217,79 @@ class NewsSearchController extends GetxController {
     isSearching.value = true;
 
     try {
-      // Arama kelimelerini ayır ve normalize et
+      _applyFilters();
+    } catch (e) {
+      print('Arama hatası: $e');
+    } finally {
+      isSearching.value = false;
+    }
+  }
+
+  /// Filtreleri uygula
+  void _applyFilters() {
+    List<NewsModel> filteredNews = List.from(allNews);
+
+    // 1. Tarih filtresi
+    if (startDate.value != null) {
+      filteredNews = filteredNews.where((news) {
+        if (news.publishedAt == null) return false;
+        return news.publishedAt!.isAfter(startDate.value!) ||
+            news.publishedAt!.isAtSameMomentAs(startDate.value!);
+      }).toList();
+    }
+
+    if (endDate.value != null) {
+      filteredNews = filteredNews.where((news) {
+        if (news.publishedAt == null) return true; // Tarihsiz haberleri dahil et
+        return news.publishedAt!.isBefore(endDate.value!.add(const Duration(days: 1)));
+      }).toList();
+    }
+
+    // 2. Kategori filtresi
+    if (selectedCategories.isNotEmpty) {
+      filteredNews = filteredNews.where((news) {
+        final categoryName = _normalizeText(news.categoryName ?? '');
+        
+        for (final catId in selectedCategories) {
+          final category = getCategoryById(catId);
+          if (category != null) {
+            final normalizedCatName = _normalizeText(category.name);
+            if (categoryName.contains(normalizedCatName) ||
+                normalizedCatName.contains(categoryName)) {
+              return true;
+            }
+            // Kaynak adı kategoriye ait mi kontrol et
+            for (final source in category.sources) {
+              final normalizedSourceName = _normalizeText(source.name);
+              final newsSourceName = _normalizeText(news.sourceName ?? '');
+              if (newsSourceName.contains(normalizedSourceName) ||
+                  normalizedSourceName.contains(newsSourceName)) {
+                return true;
+              }
+            }
+          }
+        }
+        return false;
+      }).toList();
+    }
+
+    // 3. Kaynak filtresi
+    if (selectedSources.isNotEmpty) {
+      filteredNews = filteredNews.where((news) {
+        final sourceName = news.sourceName ?? '';
+        return selectedSources.contains(sourceName);
+      }).toList();
+    }
+
+    // 4. Metin araması (eğer query varsa)
+    if (searchQuery.value.isNotEmpty) {
       final normalizedQuery = _normalizeText(searchQuery.value);
       final searchTerms = normalizedQuery
           .split(' ')
           .where((t) => t.isNotEmpty)
           .toList();
 
-      // Haberleri skorla ve filtrele
-      final scoredNews = allNews.map((news) {
+      final scoredNews = filteredNews.map((news) {
         int score = 0;
         final title = _normalizeText(news.title ?? '');
         final description = _normalizeText(news.description ?? '');
@@ -88,129 +300,103 @@ class NewsSearchController extends GetxController {
         for (final term in searchTerms) {
           if (term.isEmpty || term.length < 2) continue;
 
-          // Başlıkta tam eşleşme (en yüksek skor)
           if (title.contains(term)) {
             score += 15;
-            // Başlangıçta varsa bonus
             if (title.startsWith(term)) score += 10;
-            // Kelime olarak tam eşleşme
             if (title.split(' ').contains(term)) score += 5;
           }
 
-          // Açıklamada eşleşme
-          if (description.contains(term)) {
-            score += 8;
-          }
+          if (description.contains(term)) score += 8;
+          if (sourceName.contains(term)) score += 5;
+          if (categoryName.contains(term)) score += 4;
 
-          // Kaynak adında eşleşme
-          if (sourceName.contains(term)) {
-            score += 5;
-          }
-
-          // Kategori adında eşleşme
-          if (categoryName.contains(term)) {
-            score += 4;
-          }
-
-          // Fuzzy matching - benzer kelimeler
-          final fuzzyScore = _calculateFuzzyScore(fullText, term);
-          score += fuzzyScore;
+          score += _calculateFuzzyScore(fullText, term);
         }
 
         return {'news': news, 'score': score};
       }).toList();
 
-      // Sonuçları skora göre sırala
+      // Skora göre sırala
       scoredNews.sort(
-        (a, b) =>
-            ((b['score'] ?? 0) as int).compareTo((a['score'] ?? 0) as int),
+        (a, b) => ((b['score'] ?? 0) as int).compareTo((a['score'] ?? 0) as int),
       );
 
-      // Yüksek skorlu sonuçlar (tam eşleşme)
       final exactMatches = scoredNews
           .where((item) => (item['score'] as int) >= 10)
           .map((item) => item['news'] as NewsModel)
           .toList();
 
-      // Düşük skorlu sonuçlar (benzer/önerilen)
       final similarMatches = scoredNews
           .where((item) {
             final score = item['score'] as int;
             return score > 0 && score < 10;
           })
           .map((item) => item['news'] as NewsModel)
-          .take(10) // En fazla 10 öneri
+          .take(10)
           .toList();
 
       if (exactMatches.isNotEmpty) {
         hasExactMatch.value = true;
-        searchResults.value = exactMatches;
+        filteredNews = exactMatches;
         suggestedResults.clear();
       } else if (similarMatches.isNotEmpty) {
-        // Tam eşleşme yok, benzer sonuçları göster
         hasExactMatch.value = false;
-        searchResults.clear();
+        filteredNews = [];
         suggestedResults.value = similarMatches;
       } else {
-        // Hiç sonuç yok - popüler/son haberlerden öner
         hasExactMatch.value = false;
-        searchResults.clear();
+        filteredNews = [];
         suggestedResults.value = allNews.take(5).toList();
       }
-    } catch (e) {
-      print('Arama hatası: $e');
-    } finally {
-      isSearching.value = false;
     }
+
+    // 5. Sıralama
+    if (sortBy.value == 'date') {
+      filteredNews.sort((a, b) {
+        final dateA = a.publishedAt;
+        final dateB = b.publishedAt;
+        if (dateA == null && dateB == null) return 0;
+        if (dateA == null) return 1;
+        if (dateB == null) return -1;
+        return sortOrder.value == 'desc'
+            ? dateB.compareTo(dateA)
+            : dateA.compareTo(dateB);
+      });
+    }
+    // relevance sıralaması zaten skor bazlı yapıldı
+
+    searchResults.value = filteredNews;
   }
 
-  // Gelişmiş fuzzy skor hesapla
   int _calculateFuzzyScore(String text, String term) {
     if (term.length < 2) return 0;
     int score = 0;
 
-    // Kelimenin ilk 2-3 karakteri eşleşiyorsa
     final prefix = term.substring(0, term.length > 2 ? 2 : term.length);
     final words = text.split(RegExp(r'\s+'));
 
     for (final word in words) {
       if (word.length < 2) continue;
-
-      // Kelime başlangıcı eşleşiyor
-      if (word.startsWith(prefix)) {
-        score += 2;
-      }
-
-      // Kelime içinde eşleşme
-      if (word.contains(prefix) && !word.startsWith(prefix)) {
-        score += 1;
-      }
-
-      // Levenshtein-benzeri benzerlik (basit)
-      if (_areSimilar(word, term)) {
-        score += 1;
-      }
+      if (word.startsWith(prefix)) score += 2;
+      if (word.contains(prefix) && !word.startsWith(prefix)) score += 1;
+      if (_areSimilar(word, term)) score += 1;
     }
 
     return score;
   }
 
-  // İki kelimenin benzer olup olmadığını kontrol et
   bool _areSimilar(String word, String term) {
     if ((word.length - term.length).abs() > 2) return false;
 
-    // Ortak karakter sayısı
     int commonChars = 0;
     for (int i = 0; i < term.length && i < word.length; i++) {
       if (word[i] == term[i]) commonChars++;
     }
 
-    // %60'tan fazla eşleşme varsa benzer say
     final similarity = commonChars / term.length;
     return similarity >= 0.6;
   }
 
-  // Aramayı temizle
   void clearSearch() {
     searchTextController.clear();
     searchQuery.value = '';
