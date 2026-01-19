@@ -260,7 +260,10 @@ class NewsService {
       print("📅 İlk 5 haber tarihi:");
       for (int i = 0; i < 5 && i < news.length; i++) {
         final n = news[i];
-        print("   ${i + 1}. ${n.publishedAt?.toIso8601String() ?? 'TARİH YOK'} - ${n.title?.substring(0, 30) ?? ''}...");
+        final titlePreview = (n.title != null && n.title!.length > 30) 
+            ? '${n.title!.substring(0, 30)}...' 
+            : (n.title ?? '');
+        print("   ${i + 1}. ${n.publishedAt?.toIso8601String() ?? 'TARİH YOK'} - $titlePreview");
       }
     }
     
@@ -409,7 +412,7 @@ class NewsService {
       'şub': 2, 'şubat': 2,
       'mart': 3,
       'nis': 4, 'nisan': 4,
-      'mayıs': 5, 'may': 5,
+      'mayıs': 5,
       'haz': 6, 'haziran': 6,
       'tem': 7, 'temmuz': 7,
       'ağu': 8, 'ağustos': 8,

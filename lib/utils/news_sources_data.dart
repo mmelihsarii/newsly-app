@@ -29,6 +29,19 @@ class NewsSourceCategory {
 /// All available news sources, cleaned and categorized
 const List<NewsSourceCategory> kNewsSources = [
   // ═══════════════════════════════════════════════════════════════════════════
+  // GENEL (Admin Panel'den eklenen haberler)
+  // ═══════════════════════════════════════════════════════════════════════════
+  NewsSourceCategory(
+    id: 'genel',
+    name: 'Genel',
+    icon: Icons.public,
+    color: Color(0xFF64748B), // Slate
+    sources: [
+      NewsSourceItem(id: 'genel', name: 'Genel'),
+    ],
+  ),
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // BİLİM & TEKNOLOJİ
   // ═══════════════════════════════════════════════════════════════════════════
   NewsSourceCategory(

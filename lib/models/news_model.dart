@@ -74,15 +74,22 @@ class NewsModel {
 
     // Kaynak adını bulma mantığı
     String? sourceNameValue =
+        json['sourceName'] ??
         json['source_name'] ??
         json['source'] ??
         json['rss_source'] ??
         json['rss_source_name'];
 
     // Eğer hala yoksa, URL'den host adını çıkar (örn: hurriyet.com.tr)
-    if (sourceNameValue == null && json['other_url'] != null) {
+    if ((sourceNameValue == null || sourceNameValue.isEmpty) && json['other_url'] != null) {
       try {
         final uri = Uri.parse(json['other_url']);
+        sourceNameValue = uri.host.replaceAll('www.', '');
+      } catch (_) {}
+    }
+    if ((sourceNameValue == null || sourceNameValue.isEmpty) && json['sourceUrl'] != null) {
+      try {
+        final uri = Uri.parse(json['sourceUrl']);
         sourceNameValue = uri.host.replaceAll('www.', '');
       } catch (_) {}
     }
@@ -102,11 +109,11 @@ class NewsModel {
       title: json['title'],
       image: imageUrl,
       date: json['date'],
-      categoryName: json['category_name'],
+      categoryName: json['categoryName'] ?? json['category_name'],
       description: json['description'],
-      type: json['content_type'], // API genelde content_type döner
-      contentValue: json['content_value'],
-      sourceUrl: json['other_url'], // RSS linki genelde other_url alanındadır
+      type: json['content_type'] ?? json['type'],
+      contentValue: json['content_value'] ?? json['contentValue'],
+      sourceUrl: json['sourceUrl'] ?? json['other_url'],
       sourceName: sourceNameValue,
       publishedAt: parsedDate,
     );
