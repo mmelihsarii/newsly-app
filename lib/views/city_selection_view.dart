@@ -55,12 +55,39 @@ class _CitySelectionViewState extends State<CitySelectionView> {
   }
 
   void _skip() {
+    // Misafir kullanıcılar kaynak seçimine gidemez
+    final authService = Get.find<AuthService>();
+    if (authService.isGuest) {
+      Get.snackbar(
+        'Üyelik Gerekli',
+        'Kaynak seçimi için lütfen üye girişi yapın.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      Get.offAll(() => LoginView());
+      return;
+    }
     // Şehir seçimi atlandığında kaynak seçimine git
-    Get.to(() => const SourceSelectionView());
+    Get.to(() => SourceSelectionView());
   }
 
   Future<void> _next() async {
     if (_selectedCity != null) {
+      // Misafir kullanıcılar kaynak seçimine gidemez
+      final authService = Get.find<AuthService>();
+      if (authService.isGuest) {
+        Get.snackbar(
+          'Üyelik Gerekli',
+          'Kaynak seçimi için lütfen üye girişi yapın.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+        );
+        Get.offAll(() => LoginView());
+        return;
+      }
+
       // Firestore'a şehri kaydet
       await Get.find<UserService>().updateUserProfile(
         displayName: Get.find<UserService>().userProfile.value?['displayName'],
@@ -70,7 +97,7 @@ class _CitySelectionViewState extends State<CitySelectionView> {
       // TODO: UserService'e city field eklenebilir
 
       // Kaynak seçimine git
-      Get.to(() => const SourceSelectionView());
+      Get.to(() => SourceSelectionView());
     }
   }
 

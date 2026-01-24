@@ -1,11 +1,14 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import '../models/news_model.dart';
+import '../models/source_model.dart';
 import '../services/news_service.dart';
+import '../services/source_service.dart';
 import '../utils/news_sources_data.dart';
 
 class NewsSearchController extends GetxController {
   final NewsService _newsService = NewsService();
+  final SourceService _sourceService = SourceService();
   final TextEditingController searchTextController = TextEditingController();
 
   // Reaktif değişkenler
@@ -36,10 +39,34 @@ class NewsSearchController extends GetxController {
   var sortBy = 'date'.obs; // 'date', 'relevance'
   var sortOrder = 'desc'.obs; // 'asc', 'desc'
 
-  // Mevcut kategoriler ve kaynaklar (UI için)
-  List<NewsSourceCategory> get availableCategories => kNewsSources;
+  // Dinamik kaynaklar (Firestore'dan)
+  var dynamicSourceCategories = <SourceCategory>[].obs;
+  var isSourcesLoading = false.obs;
+
+  // Mevcut kategoriler (dinamik veya statik)
+  List<dynamic> get availableCategories {
+    if (dynamicSourceCategories.isNotEmpty) {
+      return dynamicSourceCategories;
+    }
+    return kNewsSources;
+  }
   
+  // Tüm kaynaklar (dinamik - kategorize edilmiş)
+  List<SourceModel> get allAvailableSources {
+    final sources = <SourceModel>[];
+    for (final cat in dynamicSourceCategories) {
+      sources.addAll(cat.sources);
+    }
+    sources.sort((a, b) => a.name.compareTo(b.name));
+    return sources;
+  }
+
+  // Eski format için uyumluluk
   List<String> get availableSources {
+    if (dynamicSourceCategories.isNotEmpty) {
+      return allAvailableSources.map((s) => s.name).toList();
+    }
+    // Fallback: haberlerden kaynak isimlerini çek
     final sources = <String>{};
     for (final news in allNews) {
       if (news.sourceName != null && news.sourceName!.isNotEmpty) {
@@ -53,6 +80,21 @@ class NewsSearchController extends GetxController {
   void onInit() {
     super.onInit();
     _loadAllNews();
+    _loadDynamicSources();
+  }
+
+  /// Firestore'dan dinamik kaynakları yükle
+  Future<void> _loadDynamicSources() async {
+    try {
+      isSourcesLoading.value = true;
+      final categories = await _sourceService.getSourcesByCategory();
+      dynamicSourceCategories.value = categories;
+      print('🔍 Arama filtreleri için ${categories.length} kategori, ${allAvailableSources.length} kaynak yüklendi');
+    } catch (e) {
+      print('❌ Dinamik kaynak yükleme hatası: $e');
+    } finally {
+      isSourcesLoading.value = false;
+    }
   }
 
   @override
@@ -403,5 +445,22 @@ class NewsSearchController extends GetxController {
     searchResults.clear();
     suggestedResults.clear();
     hasExactMatch.value = false;
+  }
+
+  /// Kategori ID'sine göre kategori bul (dinamik veya statik)
+  dynamic getCategoryById(String catId) {
+    // Önce dinamik kategorilerde ara
+    for (final cat in dynamicSourceCategories) {
+      if (cat.id == catId || _normalizeText(cat.name) == _normalizeText(catId)) {
+        return cat;
+      }
+    }
+    // Statik kategorilerde ara
+    for (final cat in kNewsSources) {
+      if (cat.id == catId || _normalizeText(cat.name) == _normalizeText(catId)) {
+        return cat;
+      }
+    }
+    return null;
   }
 }

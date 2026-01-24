@@ -9,7 +9,6 @@ import 'saved/saved_view.dart';
 import 'profile/profile_view.dart';
 
 // Global key for accessing scaffold from anywhere
-// This key is created once and should not change
 final GlobalKey<ScaffoldState> mainScaffoldKey = GlobalKey<ScaffoldState>();
 
 class DashboardView extends StatefulWidget {
@@ -108,6 +107,7 @@ class _DashboardViewState extends State<DashboardView> {
               final isTakip = index == 2;
 
               // Takip butonu özel tasarım - TAM YUVARLAK
+              // Takip edilen kaynaklar sayfasına gider
               if (isTakip) {
                 return Expanded(
                   child: GestureDetector(

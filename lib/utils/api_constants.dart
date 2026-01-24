@@ -8,4 +8,7 @@ class ApiConstants {
   static const String getCategories = "category_list";
   static const String getCities = "cities";
   static const String getFeaturedSections = "get_featured_sections";
+  
+  // Canlı Yayınlar
+  static const String getLiveStreams = "get_live_streams";
 }

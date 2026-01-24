@@ -149,22 +149,34 @@ class InterestController extends GetxController {
     _saveCities();
   }
 
-  // Kategori toggle
+  // Kategori toggle - ID BAZLI TOPIC
   void toggleCategory(String categoryName) {
-    final String topicName = 'category_${_normalizeTopicName(categoryName)}';
+    // Kategori ID'sini bul
+    final category = categories.firstWhere(
+      (c) => c['name'] == categoryName,
+      orElse: () => {'id': 0, 'name': categoryName},
+    );
+    final int categoryId = category['id'] ?? 0;
+    
+    // Topic adı: category_{id} formatında (backend ile uyumlu)
+    final String topicName = 'category_$categoryId';
 
     if (followedCategories.contains(categoryName)) {
       // Takipten çık
       followedCategories.remove(categoryName);
       _messaging.unsubscribeFromTopic(topicName);
-      print('❌ $topicName konusundan ayrıldı');
+      print('❌ $topicName konusundan ayrıldı (ID: $categoryId)');
     } else {
       // Takibe al
       followedCategories.add(categoryName);
       _messaging.subscribeToTopic(topicName);
-      print('✅ $topicName konusuna abone olundu');
+      print('✅ $topicName konusuna abone olundu (ID: $categoryId)');
     }
     _saveCategories();
+    
+    // Debug: Kayıtlı kategorileri göster
+    print('📋 Güncel takip edilen kategoriler: ${followedCategories.toList()}');
+    print('💾 Storage\'a kaydedildi: $_categoriesKey');
   }
 
   // Şehir takip kontrolü

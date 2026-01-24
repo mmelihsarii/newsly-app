@@ -27,7 +27,7 @@ class _EmailLoginViewState extends State<EmailLoginView> {
   Future<void> _markAsLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', true);
-    print('✅ isLoggedIn = true olarak kaydedildi');
+    await prefs.setInt('lastLoginTime', DateTime.now().millisecondsSinceEpoch);
   }
 
   Future<void> _signIn() async {
@@ -53,9 +53,7 @@ class _EmailLoginViewState extends State<EmailLoginView> {
           );
 
     if (result != null) {
-      // Giriş başarılı - isLoggedIn kaydet
       await _markAsLoggedIn();
-      // Giriş yapan kullanıcıyı şehir seçimine yönlendir
       Get.offAll(() => const CitySelectionView());
     }
   }
@@ -63,9 +61,7 @@ class _EmailLoginViewState extends State<EmailLoginView> {
   Future<void> _signInWithGoogle() async {
     final result = await _authService.signInWithGoogle();
     if (result != null) {
-      // Giriş başarılı - isLoggedIn kaydet
       await _markAsLoggedIn();
-      // Giriş yapan kullanıcıyı şehir seçimine yönlendir
       Get.offAll(() => const CitySelectionView());
     }
   }
@@ -97,162 +93,186 @@ class _EmailLoginViewState extends State<EmailLoginView> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF0D1B2A) : Colors.white,
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
-                // Back Button
-                IconButton(
-                  onPressed: _goBack,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.black87,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Sign In / Sign Up Toggle
-                _buildToggle(),
-                const SizedBox(height: 32),
-                // Title
-                Text(
-                  _isSignIn ? "Giriş\nYap" : "Kayıt\nOl",
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E3A5F),
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 40),
-                // Email Field
-                _buildTextField(
-                  controller: _emailController,
-                  hintText: 'E-posta',
-                  prefixIcon: Icons.email_outlined,
-                ),
-                const SizedBox(height: 16),
-                // Password Field
-                _buildPasswordField(),
-                const SizedBox(height: 12),
-                // Forgot Password
-                GestureDetector(
-                  onTap: _forgotPassword,
-                  child: const Text(
-                    'Şifremi unuttum',
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                ),
-                const SizedBox(height: 40),
-                // Sign In Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _signIn,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF4220B),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: screenHeight - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
+            ),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  // Back Button
+                  IconButton(
+                    onPressed: _goBack,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: isDark ? Colors.white : Colors.black87,
+                      size: 24,
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Sign In / Sign Up Toggle
+                  _buildToggle(isDark),
+                  
+                  const SizedBox(height: 20),
+                  
+                  // Title
+                  Text(
+                    _isSignIn ? "Giriş\nYap" : "Kayıt\nOl",
+                    style: TextStyle(
+                      fontSize: screenHeight < 700 ? 28 : 32,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF1E3A5F),
+                      height: 1.1,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Email Field
+                  _buildTextField(
+                    controller: _emailController,
+                    hintText: 'E-posta',
+                    prefixIcon: Icons.email_outlined,
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Password Field
+                  _buildPasswordField(isDark),
+                  const SizedBox(height: 8),
+                  
+                  // Forgot Password
+                  GestureDetector(
+                    onTap: _forgotPassword,
                     child: Text(
-                      _isSignIn ? 'Giriş Yap' : 'Kayıt Ol',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      'Şifremi unuttum',
+                      style: TextStyle(color: isDark ? Colors.white54 : Colors.grey, fontSize: 13),
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                // Or sign in with
-                const Center(
-                  child: Text(
-                    'veya ile giriş yap',
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Social Buttons Row
-                Row(
-                  children: [
-                    // Google Button
-                    Expanded(
-                      child: SizedBox(
-                        height: 56,
-                        child: OutlinedButton.icon(
-                          onPressed: _signInWithGoogle,
-                          icon: Image.network(
-                            'https://www.google.com/favicon.ico',
-                            width: 20,
-                            height: 20,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.g_mobiledata,
-                              size: 24,
-                              color: Colors.red,
-                            ),
-                          ),
-                          label: const Text(
-                            'Google',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.grey.shade300),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
+                  
+                  const Spacer(),
+                  const SizedBox(height: 24),
+                  
+                  // Sign In Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _signIn,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF4220B),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(26),
                         ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        _isSignIn ? 'Giriş Yap' : 'Kayıt Ol',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                       ),
                     ),
-                    // Apple Button - sadece iOS'ta göster
-                    if (Platform.isIOS)
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Or sign in with
+                  Center(
+                    child: Text(
+                      'veya ile giriş yap',
+                      style: TextStyle(color: isDark ? Colors.white54 : Colors.grey, fontSize: 13),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  
+                  // Social Buttons Row
+                  Row(
+                    children: [
+                      // Google Button
                       Expanded(
                         child: SizedBox(
-                          height: 56,
+                          height: 50,
                           child: OutlinedButton.icon(
-                            onPressed: _signInWithApple,
-                            icon: const Icon(
-                              Icons.apple,
-                              size: 22,
-                              color: Colors.black,
+                            onPressed: _signInWithGoogle,
+                            icon: Image.network(
+                              'https://www.google.com/favicon.ico',
+                              width: 18,
+                              height: 18,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.g_mobiledata,
+                                size: 22,
+                                color: Colors.red,
+                              ),
                             ),
-                            label: const Text(
-                              'Apple ID',
+                            label: Text(
+                              'Google',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.black87,
+                                color: isDark ? Colors.white : Colors.black87,
                               ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Colors.grey.shade300),
+                              side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
+                                borderRadius: BorderRadius.circular(26),
                               ),
                             ),
                           ),
                         ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 40),
-              ],
+                      // Apple Button - sadece iOS
+                      if (Platform.isIOS) ...[
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: SizedBox(
+                            height: 50,
+                            child: OutlinedButton.icon(
+                              onPressed: _signInWithApple,
+                              icon: Icon(
+                                Icons.apple,
+                                size: 20,
+                                color: isDark ? Colors.white : Colors.black,
+                              ),
+                              label: Text(
+                                'Apple ID',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(26),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
           ),
         ),
@@ -260,51 +280,47 @@ class _EmailLoginViewState extends State<EmailLoginView> {
     );
   }
 
-  Widget _buildToggle() {
+  Widget _buildToggle(bool isDark) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(30),
+        color: isDark ? const Color(0xFF1A2F47) : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(26),
       ),
       padding: const EdgeInsets.all(4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Sign In
           GestureDetector(
             onTap: () => setState(() => _isSignIn = true),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
                 color: _isSignIn ? const Color(0xFF1E3A5F) : Colors.transparent,
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(22),
               ),
               child: Text(
                 'Giriş Yap',
                 style: TextStyle(
-                  color: _isSignIn ? Colors.white : Colors.grey,
-                  fontSize: 14,
+                  color: _isSignIn ? Colors.white : (isDark ? Colors.white54 : Colors.grey),
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
           ),
-          // Sign Up
           GestureDetector(
             onTap: () => setState(() => _isSignIn = false),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                color: !_isSignIn
-                    ? const Color(0xFF1E3A5F)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(30),
+                color: !_isSignIn ? const Color(0xFF1E3A5F) : Colors.transparent,
+                borderRadius: BorderRadius.circular(22),
               ),
               child: Text(
                 'Kayıt Ol',
                 style: TextStyle(
-                  color: !_isSignIn ? Colors.white : Colors.grey,
-                  fontSize: 14,
+                  color: !_isSignIn ? Colors.white : (isDark ? Colors.white54 : Colors.grey),
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -319,62 +335,57 @@ class _EmailLoginViewState extends State<EmailLoginView> {
     required TextEditingController controller,
     required String hintText,
     required IconData prefixIcon,
+    required bool isDark,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        color: isDark ? const Color(0xFF1A2F47) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
       ),
       child: TextField(
         controller: controller,
+        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: TextStyle(color: Colors.grey.shade400),
-          prefixIcon: Icon(prefixIcon, color: Colors.grey.shade400, size: 22),
+          hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade400),
+          prefixIcon: Icon(prefixIcon, color: isDark ? Colors.white38 : Colors.grey.shade400, size: 20),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
       ),
     );
   }
 
-  Widget _buildPasswordField() {
+  Widget _buildPasswordField(bool isDark) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        color: isDark ? const Color(0xFF1A2F47) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
       ),
       child: TextField(
         controller: _passwordController,
         obscureText: _obscurePassword,
+        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
         decoration: InputDecoration(
           hintText: 'Şifre',
-          hintStyle: TextStyle(color: Colors.grey.shade400),
+          hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade400),
           prefixIcon: Icon(
-            Icons.visibility_outlined,
-            color: Colors.grey.shade400,
-            size: 22,
+            Icons.lock_outline,
+            color: isDark ? Colors.white38 : Colors.grey.shade400,
+            size: 20,
           ),
           suffixIcon: GestureDetector(
             onTap: () => setState(() => _obscurePassword = !_obscurePassword),
             child: Icon(
-              _obscurePassword
-                  ? Icons.visibility_off_outlined
-                  : Icons.visibility_outlined,
-              color: Colors.grey.shade400,
-              size: 22,
+              _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+              color: isDark ? Colors.white38 : Colors.grey.shade400,
+              size: 20,
             ),
           ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
       ),
     );

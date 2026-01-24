@@ -18,7 +18,7 @@ class SavedView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final SavedController controller = Get.find<SavedController>();
-    final searchController = Get.put(search.NewsSearchController());
+    final searchController = Get.find<search.NewsSearchController>();
     final isSearchOpen = false.obs;
 
     return Scaffold(

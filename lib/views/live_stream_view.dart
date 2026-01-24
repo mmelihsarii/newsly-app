@@ -6,7 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../services/live_stream_service.dart';
 import '../controllers/dashboard_controller.dart';
 import '../utils/colors.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'my_youtube_player.dart';
 
 class LiveStreamView extends StatelessWidget {
   const LiveStreamView({super.key});
@@ -18,7 +18,7 @@ class LiveStreamView extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF1A2F47) : const Color(0xFFF8F9FA),
+      backgroundColor: isDark ? const Color(0xFF0D1B2A) : const Color(0xFFF8F9FA),
       appBar: _buildAppBar(context, controller),
       body: Obx(() {
         if (controller.isLoading.value && controller.streams.isEmpty) {
@@ -125,7 +125,6 @@ class LiveStreamView extends StatelessWidget {
       titleSpacing: 0,
       leading: IconButton(
         onPressed: () {
-          // Anasayfaya geri dön
           Get.back();
           final dashboardController = Get.find<DashboardController>();
           dashboardController.changeTabIndex(0);
@@ -134,7 +133,6 @@ class LiveStreamView extends StatelessWidget {
       ),
       title: GestureDetector(
         onTap: () {
-          // Logo'ya basınca anasayfaya git
           Get.back();
           final dashboardController = Get.find<DashboardController>();
           dashboardController.changeTabIndex(0);
@@ -157,7 +155,6 @@ class LiveStreamView extends StatelessWidget {
       ),
       centerTitle: false,
       actions: [
-        // Canlı Yayın Badge - Aktif sayfa
         Container(
           margin: const EdgeInsets.symmetric(vertical: 14),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -181,21 +178,12 @@ class LiveStreamView extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 8),
-        // Yenile Butonu
-        IconButton(
-          onPressed: () => controller.refresh(),
-          icon: Icon(
-            Icons.refresh,
-            color: isDark ? Colors.white : Colors.black87,
-            size: 26,
-          ),
-        ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 16),
       ],
     );
   }
 }
+
 
 class _LiveStreamCard extends StatelessWidget {
   final LiveStream stream;
@@ -205,210 +193,185 @@ class _LiveStreamCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _openStream(),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF132440) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Thumbnail / Preview
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child: AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: stream.thumbnailUrl != null
-                        ? CachedNetworkImage(
-                            imageUrl: stream.thumbnailUrl!,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
-                              color: Colors.grey.shade200,
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+    return RepaintBoundary(
+      child: GestureDetector(
+        onTap: () => _openStream(),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF132440) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Thumbnail
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: stream.thumbnailUrl != null
+                          ? CachedNetworkImage(
+                              imageUrl: stream.thumbnailUrl!,
+                              fit: BoxFit.cover,
+                              memCacheWidth: 600,
+                              placeholder: (_, __) => Container(
+                                color: isDark ? const Color(0xFF1A2F47) : Colors.grey.shade200,
+                              ),
+                              errorWidget: (_, __, ___) => Container(
+                                color: Colors.grey.shade800,
+                                child: const Center(
+                                  child: Icon(Icons.live_tv, size: 48, color: Colors.white54),
                                 ),
                               ),
-                            ),
-                            errorWidget: (_, __, ___) => Container(
+                            )
+                          : Container(
                               color: Colors.grey.shade800,
                               child: const Center(
-                                child: Icon(
-                                  Icons.live_tv,
-                                  size: 48,
-                                  color: Colors.white54,
-                                ),
+                                child: Icon(Icons.live_tv, size: 48, color: Colors.white54),
                               ),
                             ),
-                          )
-                        : Container(
-                            color: Colors.grey.shade800,
-                            child: const Center(
-                              child: Icon(
-                                Icons.live_tv,
-                                size: 48,
-                                color: Colors.white54,
-                              ),
-                            ),
-                          ),
-                  ),
-                ),
-                // Canlı Badge
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.circle, color: Colors.white, size: 8),
-                        SizedBox(width: 4),
-                        Text(
-                          'CANLI',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
-                ),
-                // Play Button Overlay
-                Positioned.fill(
-                  child: Center(
+                  // Canlı Badge
+                  Positioned(
+                    top: 12,
+                    left: 12,
                     child: Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
-                        shape: BoxShape.circle,
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Icon(
-                        Icons.play_arrow,
-                        color: Colors.white,
-                        size: 40,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            // Stream Info
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // Logo
-                  if (stream.logoUrl != null && stream.logoUrl!.isNotEmpty)
-                    Container(
-                      width: 48,
-                      height: 48,
-                      margin: const EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: CachedNetworkImage(
-                          imageUrl: stream.logoUrl!,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => Container(
-                            color: isDark ? const Color(0xFF1A2F47) : Colors.grey.shade100,
-                            child: Icon(Icons.tv, color: isDark ? Colors.white38 : Colors.grey),
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    Container(
-                      width: 48,
-                      height: 48,
-                      margin: const EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF4220B).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.tv,
-                        color: Color(0xFFF4220B),
-                        size: 24,
-                      ),
-                    ),
-                  // Title & Source
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          stream.title,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (stream.sourceName != null &&
-                            stream.sourceName!.isNotEmpty) ...[
-                          const SizedBox(height: 4),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.circle, color: Colors.white, size: 8),
+                          SizedBox(width: 4),
                           Text(
-                            stream.sourceName!,
+                            'CANLI',
                             style: TextStyle(
-                              fontSize: 13,
-                              color: isDark ? Colors.white54 : Colors.grey.shade600,
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
                             ),
                           ),
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                  // Arrow
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    color: isDark ? Colors.white38 : Colors.grey.shade400,
-                    size: 16,
+                  // Play Button
+                  Positioned.fill(
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.play_arrow, color: Colors.white, size: 40),
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+              // Info
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // Logo
+                    if (stream.logoUrl != null && stream.logoUrl!.isNotEmpty)
+                      Container(
+                        width: 48,
+                        height: 48,
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: stream.logoUrl!,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => Container(
+                              color: isDark ? const Color(0xFF1A2F47) : Colors.grey.shade100,
+                              child: Icon(Icons.tv, color: isDark ? Colors.white38 : Colors.grey),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        width: 48,
+                        height: 48,
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4220B).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.tv, color: Color(0xFFF4220B), size: 24),
+                      ),
+                    // Title & Source
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            stream.title,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (stream.sourceName != null && stream.sourceName!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              stream.sourceName!,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white54 : Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: isDark ? Colors.white38 : Colors.grey.shade400,
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Future<void> _openStream() async {
-    // 1. Kontrol: Eğer link YouTube linki ise Bizim Player'ı aç
-    if (stream.url.contains('youtube.com') || stream.url.contains('youtu.be')) {
+    // YouTube linki ise in-app player aç
+    if (stream.isYoutube) {
       Get.to(() => MyYoutubePlayer(url: stream.url));
     }
-    // 2. Kontrol: YouTube değilse (m3u8 vb.) eski usül dışarıda aç
+    // YouTube değilse (m3u8 vb.) dışarıda aç
     else {
       final uri = Uri.parse(stream.url);
       if (await canLaunchUrl(uri)) {
@@ -423,114 +386,5 @@ class _LiveStreamCard extends StatelessWidget {
         );
       }
     }
-  }
-}
-
-// 👇 class MyYoutubePlayer KISMINI KOMPLE BUNUNLA DEĞİŞTİR 👇
-
-class MyYoutubePlayer extends StatefulWidget {
-  final String url;
-  const MyYoutubePlayer({super.key, required this.url});
-
-  @override
-  _MyYoutubePlayerState createState() => _MyYoutubePlayerState();
-}
-
-class _MyYoutubePlayerState extends State<MyYoutubePlayer> {
-  late YoutubePlayerController _controller;
-  bool _isError = false;
-
-  @override
-  void initState() {
-    super.initState();
-    String? videoId = YoutubePlayer.convertUrlToId(widget.url);
-
-    _controller = YoutubePlayerController(
-      initialVideoId: videoId ?? "",
-      flags: const YoutubePlayerFlags(
-        autoPlay: true,
-        mute: false,
-        isLive: true,
-        forceHD: true,
-      ),
-    );
-
-    // Error handling via listener
-    _controller.addListener(() {
-      if (_controller.value.hasError && !_isError) {
-        print("YouTube Hatası: ${_controller.value.errorCode}");
-        _handleError();
-      }
-    });
-  }
-
-  // Hata alınca çalışacak fonksiyon
-  void _handleError() async {
-    if (_isError) return; // Zaten işlem yapılıyorsa dur
-    setState(() => _isError = true);
-
-    Get.snackbar(
-      "Yayın Kısıtlaması",
-      "Kanal sahibi bu yayını kısıtlamış. YouTube'da açılıyor...",
-      backgroundColor: Colors.red,
-      colorText: Colors.white,
-      duration: const Duration(seconds: 3),
-    );
-
-    // 1.5 saniye bekle kullanıcı mesajı okusun
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    // YouTube uygulamasını aç
-    final uri = Uri.parse(widget.url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-
-    // Bizim siyah ekranı kapat
-    Get.back();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Get.back(),
-        ),
-      ),
-      body: Center(
-        child: _isError
-            ? const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.lock_clock, color: Colors.white, size: 50),
-                  SizedBox(height: 10),
-                  Text(
-                    "Yönlendiriliyor...",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ],
-              )
-            : YoutubePlayer(
-                controller: _controller,
-                showVideoProgressIndicator: true,
-                progressIndicatorColor: Colors.red,
-                liveUIColor: Colors.red,
-                onEnded: (meta) {
-                  // Bazen hata yerine video bitmiş gibi davranır
-                },
-              ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 }

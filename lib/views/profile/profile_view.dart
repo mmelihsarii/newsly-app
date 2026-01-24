@@ -9,13 +9,33 @@ import '../../services/user_service.dart';
 import '../../utils/colors.dart';
 import '../login_view.dart';
 
-class ProfileView extends StatelessWidget {
+class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
+
+  @override
+  State<ProfileView> createState() => _ProfileViewState();
+}
+
+class _ProfileViewState extends State<ProfileView> {
+  late ProfileController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // Her seferinde yeni controller oluştur
+    controller = Get.put(ProfileController(), tag: 'profile_view');
+  }
+
+  @override
+  void dispose() {
+    // Controller'ı temizle
+    Get.delete<ProfileController>(tag: 'profile_view');
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final authService = Get.find<AuthService>();
-    final controller = Get.put(ProfileController());
     final dashboardController = Get.find<DashboardController>();
 
     return Scaffold(
@@ -316,8 +336,11 @@ class ProfileView extends StatelessWidget {
   }
 
   void _showEditDialog(ProfileController controller) {
+    final isDark = Get.isDarkMode;
+    
     Get.dialog(
       Dialog(
+        backgroundColor: isDark ? const Color(0xFF1A2F47) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
           padding: const EdgeInsets.all(24),
@@ -329,16 +352,20 @@ class ProfileView extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Profili Düzenle',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
                     IconButton(
                       onPressed: () => Get.back(),
-                      icon: const Icon(Icons.close),
+                      icon: Icon(
+                        Icons.close,
+                        color: isDark ? Colors.white70 : Colors.black54,
+                      ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -349,12 +376,14 @@ class ProfileView extends StatelessWidget {
                   label: 'Ad',
                   controller: controller.firstNameController,
                   icon: Icons.person_outline,
+                  isDark: isDark,
                 ),
                 const SizedBox(height: 16),
                 _buildDialogTextField(
                   label: 'Soyad',
                   controller: controller.lastNameController,
                   icon: Icons.person_outline,
+                  isDark: isDark,
                 ),
                 const SizedBox(height: 16),
                 _buildDialogTextField(
@@ -363,6 +392,7 @@ class ProfileView extends StatelessWidget {
                   icon: Icons.info_outline,
                   maxLines: 4,
                   hintText: 'Kendinizden kısaca bahsedin...',
+                  isDark: isDark,
                 ),
                 const SizedBox(height: 24),
                 Obx(
@@ -376,7 +406,9 @@ class ProfileView extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFF4220B),
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.grey.shade300,
+                        disabledBackgroundColor: isDark 
+                            ? Colors.grey.shade700 
+                            : Colors.grey.shade300,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -414,30 +446,39 @@ class ProfileView extends StatelessWidget {
     required IconData icon,
     int maxLines = 1,
     String? hintText,
+    bool isDark = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: Colors.black87,
+            color: isDark ? Colors.white : Colors.black87,
           ),
         ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: Colors.grey.shade100,
+            color: isDark ? const Color(0xFF132440) : Colors.grey.shade100,
             borderRadius: BorderRadius.circular(12),
+            border: isDark 
+                ? Border.all(color: const Color(0xFF2A4F67)) 
+                : null,
           ),
           child: TextField(
             controller: controller,
             maxLines: maxLines,
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
+            ),
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: TextStyle(color: Colors.grey.shade400),
+              hintStyle: TextStyle(
+                color: isDark ? Colors.white38 : Colors.grey.shade400,
+              ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,

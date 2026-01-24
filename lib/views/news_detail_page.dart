@@ -1,20 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import '../models/news_model.dart';
 import '../controllers/saved_controller.dart';
 import '../controllers/reading_settings_controller.dart';
 import '../utils/date_helper.dart';
+import '../services/analytics_service.dart';
 
-class NewsDetailPage extends StatelessWidget {
+class NewsDetailPage extends StatefulWidget {
   final NewsModel news;
 
   const NewsDetailPage({super.key, required this.news});
 
   @override
+  State<NewsDetailPage> createState() => _NewsDetailPageState();
+}
+
+class _NewsDetailPageState extends State<NewsDetailPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Analytics: Haber okundu
+    AnalyticsService().logNewsRead(
+      newsId: widget.news.id ?? '',
+      newsTitle: widget.news.title ?? '',
+      category: widget.news.categoryName ?? '',
+      source: widget.news.sourceName ?? '',
+    );
+    AnalyticsService().logScreenView(screenName: 'news_detail');
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final news = widget.news;
     final savedController = Get.find<SavedController>();
     final readingController = Get.find<ReadingSettingsController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -37,9 +58,7 @@ class NewsDetailPage extends StatelessWidget {
           ),
           IconButton(
             icon: Icon(Icons.share, color: isDark ? Colors.white : Colors.black),
-            onPressed: () {
-              print("Paylaş tıklandı");
-            },
+            onPressed: () => _shareNews(),
           ),
           // Kaydet Butonu
           Obx(() {
@@ -54,129 +73,135 @@ class NewsDetailPage extends StatelessWidget {
           }),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. KAPAK RESMİ - Okuma modunda gizle
-            Obx(() {
-              if (readingController.isReadingMode.value) {
-                return const SizedBox.shrink();
-              }
-              if (news.image == null || news.image!.isEmpty) {
-                return const SizedBox.shrink();
-              }
-              return SizedBox(
-                height: 250,
-                width: double.infinity,
-                child: CachedNetworkImage(
-                  imageUrl: news.image!,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) =>
-                      const Center(child: CircularProgressIndicator()),
-                  errorWidget: (context, url, error) => Container(
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.broken_image, color: Colors.grey),
+      body: SafeArea(
+        bottom: true,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. KAPAK RESMİ - Okuma modunda gizle
+              Obx(() {
+                if (readingController.isReadingMode.value) {
+                  return const SizedBox.shrink();
+                }
+                if (news.image == null || news.image!.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                return SizedBox(
+                  height: 250,
+                  width: double.infinity,
+                  child: CachedNetworkImage(
+                    imageUrl: news.image!,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) =>
+                        const Center(child: CircularProgressIndicator()),
+                    errorWidget: (context, url, error) => Container(
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                    ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
 
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 2. KATEGORİ ETİKETİ
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      news.categoryName ?? "Haber",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 2. KATEGORİ ETİKETİ
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        news.categoryName ?? "Haber",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
+                    const SizedBox(height: 10),
 
-                  // 3. BAŞLIK - Font boyutuna göre
-                  Obx(() => Text(
-                    news.title ?? "Başlık Yok",
-                    style: TextStyle(
-                      fontSize: readingController.fontSize.value + 6,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                      height: 1.3,
-                    ),
-                  )),
-                  const SizedBox(height: 10),
+                    // 3. BAŞLIK - Font boyutuna göre
+                    Obx(() => Text(
+                      news.title ?? "Başlık Yok",
+                      style: TextStyle(
+                        fontSize: readingController.fontSize.value + 6,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                        height: 1.3,
+                      ),
+                    )),
+                    const SizedBox(height: 10),
 
-                  // 4. KAYNAK VE TARİH
-                  Row(
-                    children: [
-                      if (news.sourceName != null &&
-                          news.sourceName!.isNotEmpty) ...[
+                    // 4. KAYNAK VE TARİH
+                    Row(
+                      children: [
+                        if (news.sourceName != null &&
+                            news.sourceName!.isNotEmpty) ...[
+                          Icon(
+                            Icons.article_outlined,
+                            size: 16,
+                            color: isDark ? Colors.grey[400] : Colors.grey,
+                          ),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              news.sourceName!,
+                              style: TextStyle(
+                                color: isDark ? Colors.grey[400] : Colors.grey,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            '•',
+                            style: TextStyle(color: Colors.grey.shade400),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
                         Icon(
-                          Icons.article_outlined,
+                          Icons.access_time,
                           size: 16,
                           color: isDark ? Colors.grey[400] : Colors.grey,
                         ),
                         const SizedBox(width: 5),
-                        Flexible(
-                          child: Text(
-                            news.sourceName!,
-                            style: TextStyle(
-                              color: isDark ? Colors.grey[400] : Colors.grey,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          DateHelper.getTimeAgo(news.date),
+                          style: TextStyle(
+                            color: isDark ? Colors.grey[400] : Colors.grey,
+                            fontSize: 13,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Text(
-                          '•',
-                          style: TextStyle(color: Colors.grey.shade400),
-                        ),
-                        const SizedBox(width: 12),
                       ],
-                      Icon(
-                        Icons.access_time,
-                        size: 16,
-                        color: isDark ? Colors.grey[400] : Colors.grey,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        DateHelper.getTimeAgo(news.date),
-                        style: TextStyle(
-                          color: isDark ? Colors.grey[400] : Colors.grey,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Divider(
-                    height: 30,
-                    thickness: 1,
-                    color: isDark ? Colors.grey[800] : Colors.grey[300],
-                  ),
+                    ),
+                    Divider(
+                      height: 30,
+                      thickness: 1,
+                      color: isDark ? Colors.grey[800] : Colors.grey[300],
+                    ),
 
-                  // 5. İÇERİK
-                  _buildContent(context, readingController, isDark),
-                ],
+                    // 5. İÇERİK
+                    _buildContent(context, readingController, isDark),
+                    
+                    // Alt boşluk - navigation bar için
+                    SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -415,21 +440,20 @@ class NewsDetailPage extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: ElevatedButton.icon(
+      child: OutlinedButton.icon(
         onPressed: () => _openOriginalSource(),
-        icon: const Icon(Icons.open_in_new, size: 20),
+        icon: const Icon(Icons.open_in_new, size: 18),
         label: const Text(
           'Devamını Gör',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFF4220B),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFF4220B),
+          side: const BorderSide(color: Color(0xFFF4220B), width: 1.5),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
-          elevation: 2,
         ),
       ),
     );
@@ -447,31 +471,468 @@ class NewsDetailPage extends StatelessWidget {
       return;
     }
 
-    try {
-      final url = Uri.parse(news.sourceUrl!);
+    // Tam ekran WebView sayfası aç
+    Get.to(
+      () => _WebViewFullScreen(
+        url: news.sourceUrl!,
+        sourceName: news.sourceName ?? 'Kaynak',
+      ),
+      transition: Transition.rightToLeft,
+    );
+  }
 
-      if (await canLaunchUrl(url)) {
-        await launchUrl(
-          url,
-          mode: LaunchMode.externalApplication,
-        );
-      } else {
-        Get.snackbar(
-          'Hata',
-          'Link açılamadı',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
-      }
+  /// Haberi paylaş - Linki panoya kopyala ve bildirim göster
+  Future<void> _shareNews() async {
+    final title = news.title ?? 'Haber';
+    final url = news.sourceUrl ?? '';
+    
+    String shareText = title;
+    if (url.isNotEmpty) {
+      shareText = '$title\n$url';
+    }
+    
+    try {
+      await Clipboard.setData(ClipboardData(text: shareText));
+      Get.snackbar(
+        'Kopyalandı',
+        'Haber linki panoya kopyalandı',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+        icon: const Icon(Icons.check_circle, color: Colors.white),
+      );
     } catch (e) {
       Get.snackbar(
         'Hata',
-        'Link açılırken bir hata oluştu',
+        'Kopyalama yapılamadı',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
+    }
+  }
+}
+
+/// WebView Modal Bottom Sheet Widget
+class _WebViewBottomSheet extends StatefulWidget {
+  final String url;
+  final String sourceName;
+
+  const _WebViewBottomSheet({
+    required this.url,
+    required this.sourceName,
+  });
+
+  @override
+  State<_WebViewBottomSheet> createState() => _WebViewBottomSheetState();
+}
+
+class _WebViewBottomSheetState extends State<_WebViewBottomSheet> {
+  late final WebViewController _controller;
+  bool _isLoading = true;
+  int _loadingProgress = 0;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _initWebView();
+  }
+
+  void _initWebView() {
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (String url) {
+            setState(() {
+              _isLoading = true;
+              _errorMessage = null;
+            });
+          },
+          onProgress: (int progress) {
+            setState(() {
+              _loadingProgress = progress;
+            });
+          },
+          onPageFinished: (String url) {
+            setState(() {
+              _isLoading = false;
+            });
+          },
+          onWebResourceError: (WebResourceError error) {
+            setState(() {
+              _isLoading = false;
+              _errorMessage = 'Sayfa yüklenemedi';
+            });
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(widget.url));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    
+    // Bottom bar yüksekliği (yaklaşık 56-80px) + safe area
+    final bottomBarHeight = 80 + bottomPadding;
+    final webViewHeight = screenHeight - bottomBarHeight;
+
+    return Container(
+      height: webViewHeight,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // Header
+          _buildHeader(isDark),
+          
+          // Loading indicator
+          if (_isLoading)
+            LinearProgressIndicator(
+              value: _loadingProgress / 100,
+              backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF4220B)),
+            ),
+          
+          // WebView veya Error
+          Expanded(
+            child: _errorMessage != null
+                ? _buildErrorWidget(isDark)
+                : ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(0)),
+                    child: WebViewWidget(controller: _controller),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF252525) : Colors.grey[100],
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // Handle bar
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[400],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          
+          // Title bar
+          Row(
+            children: [
+              // Kapat butonu
+              IconButton(
+                onPressed: () => Get.back(),
+                icon: Icon(
+                  Icons.close,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
+                tooltip: 'Kapat',
+              ),
+              
+              // Kaynak adı ve URL
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.sourceName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      _getDomain(widget.url),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Yenile butonu
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _isLoading = true;
+                    _errorMessage = null;
+                  });
+                  _controller.reload();
+                },
+                icon: Icon(
+                  Icons.refresh,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
+                tooltip: 'Yenile',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: isDark ? Colors.grey[600] : Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _errorMessage ?? 'Bir hata oluştu',
+            style: TextStyle(
+              fontSize: 16,
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              setState(() {
+                _isLoading = true;
+                _errorMessage = null;
+              });
+              _controller.reload();
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Tekrar Dene'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF4220B),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getDomain(String url) {
+    try {
+      final uri = Uri.parse(url);
+      return uri.host;
+    } catch (_) {
+      return url;
+    }
+  }
+}
+
+
+/// Tam Ekran WebView Sayfası
+class _WebViewFullScreen extends StatefulWidget {
+  final String url;
+  final String sourceName;
+
+  const _WebViewFullScreen({
+    required this.url,
+    required this.sourceName,
+  });
+
+  @override
+  State<_WebViewFullScreen> createState() => _WebViewFullScreenState();
+}
+
+class _WebViewFullScreenState extends State<_WebViewFullScreen> {
+  late final WebViewController _controller;
+  bool _isLoading = true;
+  int _loadingProgress = 0;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _initWebView();
+  }
+
+  void _initWebView() {
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(Colors.white)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (String url) {
+            setState(() {
+              _isLoading = true;
+              _errorMessage = null;
+            });
+          },
+          onProgress: (int progress) {
+            setState(() {
+              _loadingProgress = progress;
+            });
+          },
+          onPageFinished: (String url) {
+            setState(() {
+              _isLoading = false;
+            });
+          },
+          onWebResourceError: (WebResourceError error) {
+            setState(() {
+              _isLoading = false;
+              _errorMessage = 'Sayfa yüklenemedi';
+            });
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(widget.url));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+      appBar: AppBar(
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        elevation: 1,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: isDark ? Colors.white : Colors.black),
+          onPressed: () => Get.back(),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.sourceName,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              _getDomain(widget.url),
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+        actions: [
+          // Yenile butonu
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _isLoading = true;
+                _errorMessage = null;
+              });
+              _controller.reload();
+            },
+            icon: Icon(
+              Icons.refresh,
+              color: isDark ? Colors.white : Colors.black,
+            ),
+            tooltip: 'Yenile',
+          ),
+        ],
+      ),
+      body: SafeArea(
+        top: false, // AppBar zaten üstte
+        bottom: true, // Alt kısımda safe area - çerez banner'ı için
+        child: Column(
+          children: [
+            // Loading indicator
+            if (_isLoading)
+              LinearProgressIndicator(
+                value: _loadingProgress / 100,
+                backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF4220B)),
+                minHeight: 3,
+              ),
+            
+            // WebView - SafeArea içinde
+            Expanded(
+              child: _errorMessage != null
+                  ? _buildErrorWidget(isDark)
+                  : WebViewWidget(controller: _controller),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: isDark ? Colors.grey[600] : Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _errorMessage ?? 'Bir hata oluştu',
+            style: TextStyle(
+              fontSize: 16,
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              setState(() {
+                _isLoading = true;
+                _errorMessage = null;
+              });
+              _controller.reload();
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Tekrar Dene'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF4220B),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getDomain(String url) {
+    try {
+      final uri = Uri.parse(url);
+      return uri.host;
+    } catch (_) {
+      return url;
     }
   }
 }

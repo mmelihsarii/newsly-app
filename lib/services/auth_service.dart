@@ -3,7 +3,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'user_service.dart';
+import 'news_service.dart';
 import '../views/login_view.dart';
 
 class AuthService extends GetxController {
@@ -31,6 +33,9 @@ class AuthService extends GetxController {
   // Mevcut kullanıcı
   User? get currentUser => _auth.currentUser;
 
+  // Misafir kullanıcı mı? (Firebase'e giriş yapmamış)
+  bool get isGuest => _auth.currentUser == null;
+
   // Kullanıcı profilini Firestore'a kaydet
   Future<void> _createUserProfileIfNeeded(UserCredential credential) async {
     final user = credential.user;
@@ -48,6 +53,9 @@ class AuthService extends GetxController {
   Future<UserCredential?> signInWithGoogle() async {
     try {
       isLoading.value = true;
+      
+      // Önceki cache'i temizle
+      Get.find<NewsService>().clearSelectedSourcesCache();
 
       // Google Sign-In akışını başlat
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
@@ -91,6 +99,9 @@ class AuthService extends GetxController {
   Future<UserCredential?> signInWithEmail(String email, String password) async {
     try {
       isLoading.value = true;
+      
+      // Önceki cache'i temizle
+      Get.find<NewsService>().clearSelectedSourcesCache();
 
       final userCredential = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
@@ -151,6 +162,14 @@ class AuthService extends GetxController {
 
       // Firebase'den çıkış
       await _auth.signOut();
+
+      // SharedPreferences'tan oturum bilgilerini temizle
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', false);
+      await prefs.remove('lastLoginTime');
+      
+      // NewsService cache'ini temizle
+      Get.find<NewsService>().clearSelectedSourcesCache();
 
       _showSuccessSnackbar('Çıkış yapıldı');
     } catch (e) {

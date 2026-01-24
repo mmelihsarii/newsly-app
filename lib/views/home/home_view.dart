@@ -12,6 +12,7 @@ import '../../utils/colors.dart';
 import '../../utils/date_helper.dart';
 import '../../widgets/notification_bottom_sheet.dart';
 import '../../widgets/search_filter_sheet.dart';
+import '../../widgets/news_card.dart' show getCategoryColor;
 import '../live_stream_view.dart';
 import '../news_detail_page.dart';
 import '../dashboard_view.dart';
@@ -24,7 +25,7 @@ class HomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final searchController = Get.put(search.NewsSearchController());
+    final searchController = Get.find<search.NewsSearchController>();
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -75,7 +76,8 @@ class HomeView extends StatelessWidget {
 
                 // ===== HABER LİSTESİ (PANEL'DEN - type: breaking_news vs.) =====
                 Obx(() {
-                  if (controller.isLoading.value) {
+                  // İlk yükleme sırasında loading göster
+                  if (controller.isLoading.value || controller.isFeaturedLoading.value) {
                     return const SizedBox(
                       height: 200,
                       child: Center(
@@ -86,10 +88,32 @@ class HomeView extends StatelessWidget {
                     );
                   }
 
-                  if (controller.newsSections.isEmpty) {
-                    return const SizedBox(
+                  // Haberler yüklendi ama boş
+                  if (controller.newsSections.isEmpty && controller.rssNews.isEmpty) {
+                    return SizedBox(
                       height: 200,
-                      child: Center(child: Text("Haber bulunamadı.")),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.newspaper, size: 48, color: Colors.grey.shade400),
+                            const SizedBox(height: 12),
+                            Text(
+                              "Haber bulunamadı",
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton.icon(
+                              onPressed: () => controller.refreshNews(),
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: const Text("Yenile"),
+                            ),
+                          ],
+                        ),
+                      ),
                     );
                   }
 
@@ -536,33 +560,24 @@ class HomeView extends StatelessWidget {
                             children: [
                               if (news.sourceName != null &&
                                   news.sourceName!.isNotEmpty) ...[
-                                Icon(
-                                  Icons.article_outlined,
-                                  size: 11,
-                                  color: isDark ? Colors.white54 : Colors.grey,
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: getCategoryColor(news.categoryName).withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
                                   child: Text(
                                     news.sourceName!,
                                     style: TextStyle(
-                                      color: isDark
-                                          ? Colors.white54
-                                          : Colors.grey.shade600,
+                                      color: getCategoryColor(news.categoryName),
                                       fontSize: 10,
-                                      fontWeight: FontWeight.w500,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '•',
-                                  style: TextStyle(
-                                    color: isDark
-                                        ? Colors.white38
-                                        : Colors.grey.shade400,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
@@ -597,7 +612,7 @@ class HomeView extends StatelessWidget {
 
   // AppBar
   AppBar _buildAppBar(BuildContext context) {
-    final searchController = Get.put(search.NewsSearchController());
+    final searchController = Get.find<search.NewsSearchController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AppBar(
@@ -1156,7 +1171,7 @@ class HomeView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Kaynak adı
+                  // Kaynak adı - kategori renkli
                   if (news.sourceName != null && news.sourceName!.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -1165,17 +1180,13 @@ class HomeView extends StatelessWidget {
                       ),
                       margin: const EdgeInsets.only(bottom: 6),
                       decoration: BoxDecoration(
-                        color: isDark
-                            ? const Color(0xFF2A4F67)
-                            : const Color(0xFF1E3A5F).withOpacity(0.1),
+                        color: getCategoryColor(news.categoryName).withOpacity(0.15),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         news.sourceName!,
                         style: TextStyle(
-                          color: isDark
-                              ? Colors.white70
-                              : const Color(0xFF1E3A5F),
+                          color: getCategoryColor(news.categoryName),
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),

@@ -54,7 +54,7 @@ class HomeController extends GetxController {
   void onInit() {
     super.onInit();
     _apiService = ApiService();
-    _newsService = NewsService();
+    _newsService = Get.find<NewsService>(); // Singleton'dan al
     scrollController = ScrollController();
     
     // Scroll listener - infinite scroll için
@@ -81,19 +81,22 @@ class HomeController extends GetxController {
   }
 
   Future<void> _loadInitialData() async {
-    // Tek seferde yükle - önce her şeyi hazırla, sonra göster
+    final stopwatch = Stopwatch()..start();
+    
+    // Tek seferde yükle
     isLoading.value = true;
     isFeaturedLoading.value = true;
     
     try {
-      // 1. API'den section yapısını çek (haberler olmadan)
-      await _fetchSectionStructure();
-      
-      // 2. RSS'ten haberleri çek ve section'lara bağla
-      await fetchRssNews();
+      // Section yapısı ve haberler paralel çekilsin
+      await Future.wait([
+        _fetchSectionStructure(),
+        fetchRssNews(), // Cache varsa hızlı döner
+      ]);
     } finally {
       isLoading.value = false;
       isFeaturedLoading.value = false;
+      print("🚀 İlk yükleme: ${stopwatch.elapsedMilliseconds}ms");
     }
   }
 
@@ -184,9 +187,13 @@ class HomeController extends GetxController {
     // Eski controller'ları temizle
     _cleanupSliderControllers();
 
+    // Slider için kaç haber ayrılacak
+    int sliderNewsCount = 0;
+
     // Slider section'larını RSS haberleriyle doldur (ilk 10 haber)
-    if (_tempSliderSections.isNotEmpty) {
-      final sliderNews = news.take(10).toList();
+    if (_tempSliderSections.isNotEmpty && news.length >= 3) {
+      sliderNewsCount = news.length > 10 ? 10 : (news.length > 3 ? news.length ~/ 3 : news.length);
+      final sliderNews = news.take(sliderNewsCount).toList();
       final oldSlider = _tempSliderSections.first;
       
       sliderSections.value = [
@@ -208,12 +215,35 @@ class HomeController extends GetxController {
       }
       
       print("✅ Slider: ${oldSlider.title} (${sliderNews.length} haber)");
+    } else if (news.length >= 3) {
+      // Section yapısı yoksa varsayılan slider oluştur
+      sliderNewsCount = news.length > 10 ? 10 : (news.length > 3 ? news.length ~/ 3 : news.length);
+      final sliderNews = news.take(sliderNewsCount).toList();
+      
+      sliderSections.value = [
+        FeaturedSectionModel(
+          id: 1,
+          title: 'Öne Çıkanlar',
+          type: 'slider',
+          order: 0,
+          isActive: true,
+          news: sliderNews,
+        )
+      ];
+      
+      featuredSliderControllers[1] = PageController();
+      featuredSliderIndices[1] = 0;
+      _startSliderAutoScroll(1);
+      
+      print("✅ Varsayılan Slider oluşturuldu (${sliderNews.length} haber)");
     }
 
-    // News section - PAGINATION ile
-    if (_tempNewsSections.isNotEmpty && news.length > 10) {
-      // Tüm haberleri sakla (slider hariç)
-      _allRssNews = news.skip(10).toList();
+    // Kalan haberler için news section
+    final remainingNews = news.skip(sliderNewsCount).toList();
+    
+    if (remainingNews.isNotEmpty) {
+      // Tüm haberleri sakla
+      _allRssNews = remainingNews;
       
       // Pagination state'i sıfırla
       final totalNewsCount = _allRssNews.length;
@@ -224,22 +254,57 @@ class HomeController extends GetxController {
       
       // Sadece ilk haberleri göster (15 veya daha az)
       final initialNews = _allRssNews.take(initialCount).toList();
-      final oldSection = _tempNewsSections.first;
+      
+      if (_tempNewsSections.isNotEmpty) {
+        final oldSection = _tempNewsSections.first;
+        newsSections.value = [
+          FeaturedSectionModel(
+            id: oldSection.id,
+            title: oldSection.title,
+            type: oldSection.type,
+            order: oldSection.order,
+            isActive: oldSection.isActive,
+            news: initialNews,
+          )
+        ];
+        print("✅ News: ${oldSection.title} (ilk $initialCount / $totalNewsCount haber, hasMore: ${hasMoreNews.value})");
+      } else {
+        // Section yapısı yoksa varsayılan oluştur
+        newsSections.value = [
+          FeaturedSectionModel(
+            id: 2,
+            title: 'Haberler',
+            type: 'news_list',
+            order: 1,
+            isActive: true,
+            news: initialNews,
+          )
+        ];
+        print("✅ Varsayılan News section oluşturuldu (ilk $initialCount / $totalNewsCount haber)");
+      }
+    } else if (sliderNewsCount == 0) {
+      // Hiç slider yoksa tüm haberleri news section'a koy
+      _allRssNews = news;
+      final totalNewsCount = _allRssNews.length;
+      final initialCount = totalNewsCount < _pageSize ? totalNewsCount : _pageSize;
+      
+      displayedNewsCount.value = initialCount;
+      hasMoreNews.value = totalNewsCount > _pageSize;
+      
+      final initialNews = _allRssNews.take(initialCount).toList();
       
       newsSections.value = [
         FeaturedSectionModel(
-          id: oldSection.id,
-          title: oldSection.title,
-          type: oldSection.type,
-          order: oldSection.order,
-          isActive: oldSection.isActive,
+          id: 2,
+          title: 'Haberler',
+          type: 'news_list',
+          order: 1,
+          isActive: true,
           news: initialNews,
         )
       ];
-      
-      print("✅ News: ${oldSection.title} (ilk $initialCount / $totalNewsCount haber, hasMore: ${hasMoreNews.value})");
+      print("✅ Tüm haberler News section'da (ilk $initialCount / $totalNewsCount haber)");
     } else {
-      // Haber yok veya çok az
       hasMoreNews.value = false;
       _allRssNews = [];
     }
@@ -262,14 +327,6 @@ class HomeController extends GetxController {
     }
 
     isLoadingMore.value = true;
-    
-    // Loading indicator'ın görünmesi için kısa gecikme
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    if (_isDisposed) {
-      isLoadingMore.value = false;
-      return;
-    }
 
     // Yeni haber sayısını hesapla
     final newCount = displayedNewsCount.value + _pageSize;
@@ -294,7 +351,7 @@ class HomeController extends GetxController {
     hasMoreNews.value = actualCount < _allRssNews.length;
     isLoadingMore.value = false;
 
-    print("📰 Daha fazla haber yüklendi: $actualCount / ${_allRssNews.length}");
+    print("📰 +${_pageSize} haber: $actualCount / ${_allRssNews.length}");
   }
 
   /// Scroll listener - sayfa sonuna TAM gelince daha fazla yükle
@@ -385,26 +442,27 @@ class HomeController extends GetxController {
     featuredSliderIndices[sectionId] = index;
   }
 
-  // Refresh - Cache'i temizle ve yeniden yükle
+  // Refresh - Önce cache'den göster, sonra arka planda güncelle
   Future<void> refreshNews() async {
     if (_isDisposed) return;
-    print(
-      "🔄 Haberler yenileniyor... Mevcut kaynaklar: ${_sourceController?.selectedSources}",
-    );
     
-    // Tek seferde yükle - önce her şeyi hazırla, sonra göster
+    final stopwatch = Stopwatch()..start();
+    print("🔄 Haberler yenileniyor...");
+    
+    // Loading göster ama kısa tut
     isLoading.value = true;
     isFeaturedLoading.value = true;
     
     try {
-      // 1. API'den section yapısını çek (haberler olmadan)
-      await _fetchSectionStructure();
-      
-      // 2. RSS'ten haberleri çek - forceRefresh ile cache'i atla
-      await fetchRssNews(forceRefresh: true);
+      // Section yapısını ve haberleri paralel çek
+      await Future.wait([
+        _fetchSectionStructure(),
+        fetchRssNews(forceRefresh: true),
+      ]);
     } finally {
       isLoading.value = false;
       isFeaturedLoading.value = false;
+      print("✅ Yenileme tamamlandı: ${stopwatch.elapsedMilliseconds}ms");
     }
   }
 }

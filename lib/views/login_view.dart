@@ -24,15 +24,12 @@ class LoginView extends StatelessWidget {
   Future<void> _signInWithGoogle() async {
     final result = await _authService.signInWithGoogle();
     if (result != null) {
-      // Giriş başarılı - isLoggedIn kaydet
       await _markAsLoggedIn();
-      // Giriş yapan kullanıcıyı şehir seçimine yönlendir
       Get.offAll(() => const CitySelectionView());
     }
   }
 
   void _signInWithApple() {
-    // Apple sign-in henüz implemente edilmedi, sadece bilgi göster
     _authService.signInWithApple();
   }
 
@@ -41,8 +38,6 @@ class LoginView extends StatelessWidget {
   }
 
   Future<void> _continueAsGuest() async {
-    // Misafir olarak devam - isLoggedIn kaydet ve direkt anasayfaya git
-    // Şehir seçimi ve kaynak seçimi ATLANACAK
     await _markAsLoggedIn();
     Get.offAll(() => DashboardView());
   }
@@ -50,308 +45,308 @@ class LoginView extends StatelessWidget {
   Future<void> _markAsLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', true);
-    print('✅ isLoggedIn = true olarak kaydedildi');
+    await prefs.setInt('lastLoginTime', DateTime.now().millisecondsSinceEpoch);
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF0D1B2A) : Colors.white,
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottomPadding > 0 ? 0 : 8),
           child: Column(
             children: [
-              // Header - Sadece Back Button
+              // Header - Back Button
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Row(
                   children: [
                     IconButton(
                       onPressed: _goBack,
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.arrow_back,
-                        color: Colors.black87,
+                        color: isDark ? Colors.white : Colors.black87,
                         size: 24,
                       ),
                     ),
                   ],
                 ),
               ),
-              // Görsel Kart
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Container(
-                  height: MediaQuery.of(context).size.height * 0.40,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Arka plan görseli
-                        Image.network(
-                          'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800',
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: const Color.fromARGB(255, 15, 32, 54),
-                          ),
-                        ),
-                        // Gradient overlay
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              stops: const [0.0, 0.4, 1.0],
-                              colors: [
-                                Colors.transparent,
-                                const Color.fromARGB(
-                                  255,
-                                  11,
-                                  25,
-                                  43,
-                                ).withOpacity(0.2),
-                                const Color.fromARGB(
-                                  255,
-                                  12,
-                                  24,
-                                  39,
-                                ).withOpacity(0.85),
-                              ],
-                            ),
-                          ),
-                        ),
-                        // Logo (üstte ortalanmış)
-                        Positioned(
-                          top: 20,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: SizedBox(
-                              height: 30,
-                              child: SvgPicture.asset(
-                                'assets/logo.svg',
-                                fit: BoxFit.contain,
-                                colorFilter: const ColorFilter.mode(
-                                  Color(0xFFF4220B),
-                                  BlendMode.srcIn,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Metin (altta)
-                        Positioned(
-                          left: 24,
-                          right: 24,
-                          bottom: 40,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Giriş\nSeçenekleri.',
-                                style: TextStyle(
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  height: 1.1,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Container(
-                                width: 40,
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF4220B),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                            ],
-                          ),
+              
+              // Görsel Kart - Flexible ile ekrana sığdır
+              Expanded(
+                flex: 4,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
                         ),
                       ],
                     ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(
+                            'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color.fromARGB(255, 15, 32, 54),
+                            ),
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                stops: const [0.0, 0.4, 1.0],
+                                colors: [
+                                  Colors.transparent,
+                                  const Color.fromARGB(255, 11, 25, 43).withOpacity(0.2),
+                                  const Color.fromARGB(255, 12, 24, 39).withOpacity(0.85),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 16,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: SizedBox(
+                                height: 28,
+                                child: SvgPicture.asset(
+                                  'assets/logo.svg',
+                                  fit: BoxFit.contain,
+                                  colorFilter: const ColorFilter.mode(
+                                    Color(0xFFF4220B),
+                                    BlendMode.srcIn,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 20,
+                            right: 20,
+                            bottom: 24,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Giriş\nSeçenekleri.',
+                                  style: TextStyle(
+                                    fontSize: screenHeight < 700 ? 28 : 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    height: 1.1,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  width: 40,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF4220B),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              
+              const SizedBox(height: 16),
+              
               // Login Butonları
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    // Email Button (Kırmızı - daha tombul)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 60,
-                      child: ElevatedButton.icon(
-                        onPressed: _continueWithEmail,
-                        icon: const Icon(Icons.email_outlined, size: 24),
-                        label: const Text(
-                          'E-posta ile Devam Et',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+              Expanded(
+                flex: 5,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      // Email Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          onPressed: _continueWithEmail,
+                          icon: const Icon(Icons.email_outlined, size: 22),
+                          label: const Text(
+                            'E-posta ile Devam Et',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                           ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF4220B),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 0,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Google Button (daha tombul)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 60,
-                      child: OutlinedButton.icon(
-                        onPressed: _signInWithGoogle,
-                        icon: Image.network(
-                          'https://www.google.com/favicon.ico',
-                          width: 22,
-                          height: 22,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.g_mobiledata,
-                            size: 26,
-                            color: Colors.red,
-                          ),
-                        ),
-                        label: const Text(
-                          'Google ile Giriş Yap',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFF4220B),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
                           ),
                         ),
                       ),
-                    ),
-                    // Apple Button - sadece iOS'ta göster
-                    if (Platform.isIOS)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: SizedBox(
+                      const SizedBox(height: 10),
+                      
+                      // Google Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: OutlinedButton.icon(
+                          onPressed: _signInWithGoogle,
+                          icon: Image.network(
+                            'https://www.google.com/favicon.ico',
+                            width: 20,
+                            height: 20,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.g_mobiledata,
+                              size: 24,
+                              color: Colors.red,
+                            ),
+                          ),
+                          label: Text(
+                            'Google ile Giriş Yap',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      // Apple Button - sadece iOS
+                      if (Platform.isIOS) ...[
+                        const SizedBox(height: 10),
+                        SizedBox(
                           width: double.infinity,
-                          height: 60,
+                          height: 52,
                           child: OutlinedButton.icon(
                             onPressed: _signInWithApple,
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.apple,
-                              size: 26,
-                              color: Colors.black,
+                              size: 24,
+                              color: isDark ? Colors.white : Colors.black,
                             ),
-                            label: const Text(
+                            label: Text(
                               'Apple ile Giriş Yap',
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.black87,
+                                color: isDark ? Colors.white : Colors.black87,
                               ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Colors.grey.shade300),
+                              side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                             ),
                           ),
                         ),
+                      ],
+                      
+                      const Spacer(),
+                      
+                      // Ayırıcı
+                      Row(
+                        children: [
+                          Expanded(child: Divider(color: isDark ? Colors.white24 : Colors.grey.shade300)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'VEYA',
+                              style: TextStyle(color: isDark ? Colors.white54 : Colors.grey, fontSize: 11),
+                            ),
+                          ),
+                          Expanded(child: Divider(color: isDark ? Colors.white24 : Colors.grey.shade300)),
+                        ],
                       ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 44),
-              // Ayırıcı - Hesap oluşturmadan devam et
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
-                  children: [
-                    Expanded(child: Divider(color: Colors.grey.shade300)),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'hesap oluşturmadan devam et',
-                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      
+                      const SizedBox(height: 12),
+                      
+                      // Misafir Butonu
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: OutlinedButton.icon(
+                          onPressed: _continueAsGuest,
+                          icon: Icon(
+                            Icons.person_outline,
+                            size: 22,
+                            color: isDark ? Colors.white54 : Colors.black54,
+                          ),
+                          label: Text(
+                            'Misafir Olarak Devam Et',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    Expanded(child: Divider(color: Colors.grey.shade300)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 36),
-              // Misafir Butonu
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 60,
-                  child: OutlinedButton.icon(
-                    onPressed: _continueAsGuest,
-                    icon: const Icon(
-                      Icons.person_outline,
-                      size: 24,
-                      color: Colors.black54,
-                    ),
-                    label: const Text(
-                      'Misafir Olarak Devam Et',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
+                      
+                      const SizedBox(height: 12),
+                      
+                      // Sign Up Link
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Hesabın yok mu? ',
+                            style: TextStyle(color: isDark ? Colors.white54 : Colors.grey, fontSize: 13),
+                          ),
+                          GestureDetector(
+                            onTap: _signUp,
+                            child: const Text(
+                              'Kayıt Ol',
+                              style: TextStyle(
+                                color: Color(0xFFF4220B),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey.shade300),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
+                      
+                      const SizedBox(height: 8),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
-              // Sign Up Link
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Hesabın yok mu? ',
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                  GestureDetector(
-                    onTap: _signUp,
-                    child: const Text(
-                      'Kayıt Ol',
-                      style: TextStyle(
-                        color: Color(0xFFF4220B),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 30),
             ],
           ),
         ),

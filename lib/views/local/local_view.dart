@@ -22,7 +22,7 @@ class LocalView extends StatelessWidget {
   Widget build(BuildContext context) {
     // Controller'ı register et
     final controller = Get.put(LocalController());
-    final searchController = Get.put(search.NewsSearchController());
+    final searchController = Get.find<search.NewsSearchController>();
     final isSearchOpen = false.obs;
 
     return Scaffold(
@@ -165,7 +165,7 @@ class LocalView extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               TextButton.icon(
-                onPressed: () => controller.fetchLocalNews(),
+                onPressed: () => controller.loadSources(),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Yeniden Dene'),
               ),

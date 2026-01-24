@@ -1,0 +1,355 @@
+import 'dart:io' show Platform;
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_service.dart';
+import 'city_selection_view.dart';
+import 'dashboard_view.dart';
+import 'email_login_view.dart';
+
+class LoginView extends StatelessWidget {
+  LoginView({super.key});
+
+  final AuthService _authService = Get.find<AuthService>();
+
+  void _goBack() {
+    Get.back();
+  }
+
+  void _continueWithEmail() {
+    Get.to(() => const EmailLoginView());
+  }
+
+  Future<void> _signInWithGoogle() async {
+    final result = await _authService.signInWithGoogle();
+    if (result != null) {
+      await _markAsLoggedIn();
+      Get.offAll(() => const CitySelectionView());
+    }
+  }
+
+  void _signInWithApple() {
+    _authService.signInWithApple();
+  }
+
+  void _signUp() {
+    Get.to(() => const EmailLoginView());
+  }
+
+  Future<void> _continueAsGuest() async {
+    await _markAsLoggedIn();
+    Get.offAll(() => DashboardView());
+  }
+
+  Future<void> _markAsLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', true);
+    await prefs.setInt('lastLoginTime', DateTime.now().millisecondsSinceEpoch);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0D1B2A) : Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottomPadding > 0 ? 0 : 8),
+          child: Column(
+            children: [
+              // Header - Back Button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: _goBack,
+                      icon: Icon(
+                        Icons.arrow_back,
+                        color: isDark ? Colors.white : Colors.black87,
+                        size: 24,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Görsel Kart - Flexible ile ekrana sığdır
+              Expanded(
+                flex: 4,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(
+                            'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color.fromARGB(255, 15, 32, 54),
+                            ),
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                stops: const [0.0, 0.4, 1.0],
+                                colors: [
+                                  Colors.transparent,
+                                  const Color.fromARGB(255, 11, 25, 43).withOpacity(0.2),
+                                  const Color.fromARGB(255, 12, 24, 39).withOpacity(0.85),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 16,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: SizedBox(
+                                height: 28,
+                                child: SvgPicture.asset(
+                                  'assets/logo.svg',
+                                  fit: BoxFit.contain,
+                                  colorFilter: const ColorFilter.mode(
+                                    Color(0xFFF4220B),
+                                    BlendMode.srcIn,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 20,
+                            right: 20,
+                            bottom: 24,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Giriş\nSeçenekleri.',
+                                  style: TextStyle(
+                                    fontSize: screenHeight < 700 ? 28 : 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    height: 1.1,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  width: 40,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF4220B),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Login Butonları
+              Expanded(
+                flex: 5,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      // Email Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          onPressed: _continueWithEmail,
+                          icon: const Icon(Icons.email_outlined, size: 22),
+                          label: const Text(
+                            'E-posta ile Devam Et',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFF4220B),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      
+                      // Google Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: OutlinedButton.icon(
+                          onPressed: _signInWithGoogle,
+                          icon: Image.network(
+                            'https://www.google.com/favicon.ico',
+                            width: 20,
+                            height: 20,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.g_mobiledata,
+                              size: 24,
+                              color: Colors.red,
+                            ),
+                          ),
+                          label: Text(
+                            'Google ile Giriş Yap',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      // Apple Button - sadece iOS
+                      if (Platform.isIOS) ...[
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: OutlinedButton.icon(
+                            onPressed: _signInWithApple,
+                            icon: Icon(
+                              Icons.apple,
+                              size: 24,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                            label: Text(
+                              'Apple ile Giriş Yap',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      
+                      const Spacer(),
+                      
+                      // Ayırıcı
+                      Row(
+                        children: [
+                          Expanded(child: Divider(color: isDark ? Colors.white24 : Colors.grey.shade300)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'VEYA',
+                              style: TextStyle(color: isDark ? Colors.white54 : Colors.grey, fontSize: 11),
+                            ),
+                          ),
+                          Expanded(child: Divider(color: isDark ? Colors.white24 : Colors.grey.shade300)),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 12),
+                      
+                      // Misafir Butonu
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: OutlinedButton.icon(
+                          onPressed: _continueAsGuest,
+                          icon: Icon(
+                            Icons.person_outline,
+                            size: 22,
+                            color: isDark ? Colors.white54 : Colors.black54,
+                          ),
+                          label: Text(
+                            'Misafir Olarak Devam Et',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 12),
+                      
+                      // Sign Up Link
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Hesabın yok mu? ',
+                            style: TextStyle(color: isDark ? Colors.white54 : Colors.grey, fontSize: 13),
+                          ),
+                          GestureDetector(
+                            onTap: _signUp,
+                            child: const Text(
+                              'Kayıt Ol',
+                              style: TextStyle(
+                                color: Color(0xFFF4220B),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -248,19 +248,19 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                         isDark: isDark,
                         onTap: () {
                           Get.back();
-                          // Üye kontrolü - üye değilse login'e yönlendir
-                          if (authService.isLoggedIn) {
-                            Get.to(() => const SourceSelectionView());
+                          // Üye kontrolü - misafir veya giriş yapmamış kullanıcıları engelle
+                          if (authService.isLoggedIn && !authService.isGuest) {
+                            Get.to(() => SourceSelectionView());
                           } else {
+                            // Sadece uyarı göster, login'e yönlendirme
                             Get.snackbar(
-                              'Giriş Gerekli',
-                              'Kaynak seçimi için lütfen giriş yapın',
+                              'Üyelik Gerekli',
+                              'Kaynak seçimi için lütfen üye girişi yapın. Misafir kullanıcılar sadece CNN Türk, NTV ve A Spor haberlerini görebilir.',
                               snackPosition: SnackPosition.BOTTOM,
                               backgroundColor: Colors.orange,
                               colorText: Colors.white,
-                              duration: const Duration(seconds: 2),
+                              duration: const Duration(seconds: 3),
                             );
-                            Get.to(() => LoginView());
                           }
                         },
                       ),

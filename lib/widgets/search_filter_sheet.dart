@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../controllers/search_controller.dart' as search;
+import '../models/source_model.dart';
 import '../utils/colors.dart';
+import '../utils/news_sources_data.dart';
 
 class SearchFilterSheet extends StatelessWidget {
   final search.NewsSearchController controller;
@@ -323,62 +325,92 @@ class SearchFilterSheet extends StatelessWidget {
   }
 
   Widget _buildCategoryFilters(bool isDark) {
-    return Obx(() => Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: controller.availableCategories.map((category) {
-        final isSelected = controller.selectedCategories.contains(category.id);
-        
-        return GestureDetector(
-          onTap: () => controller.toggleCategory(category.id),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? category.color.withOpacity(0.2)
-                  : (isDark ? const Color(0xFF2A4F67) : Colors.grey.shade100),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
+    return Obx(() {
+      final categories = controller.availableCategories;
+      
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: categories.map((category) {
+          // Dinamik veya statik kategori olabilir
+          final String catId;
+          final String catName;
+          final Color catColor;
+          final IconData catIcon;
+          
+          if (category is SourceCategory) {
+            // Dinamik kategori (Firestore'dan)
+            catId = category.id;
+            catName = category.name;
+            catColor = _getCategoryColor(category.name);
+            catIcon = _getCategoryIcon(category.name);
+          } else {
+            // Statik kategori (NewsSourceCategory)
+            catId = category.id;
+            catName = category.name;
+            catColor = category.color;
+            catIcon = category.icon;
+          }
+          
+          final isSelected = controller.selectedCategories.contains(catId);
+          
+          return GestureDetector(
+            onTap: () => controller.toggleCategory(catId),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
                 color: isSelected
-                    ? category.color
-                    : (isDark ? const Color(0xFF3A5F77) : Colors.grey.shade300),
+                    ? catColor.withOpacity(0.2)
+                    : (isDark ? const Color(0xFF2A4F67) : Colors.grey.shade100),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected
+                      ? catColor
+                      : (isDark ? const Color(0xFF3A5F77) : Colors.grey.shade300),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    catIcon,
+                    size: 16,
+                    color: isSelected
+                        ? catColor
+                        : (isDark ? Colors.white54 : Colors.grey),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    catName,
+                    style: TextStyle(
+                      color: isSelected
+                          ? catColor
+                          : (isDark ? Colors.white70 : Colors.black87),
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      fontSize: 13,
+                    ),
+                  ),
+                  if (isSelected) ...[
+                    const SizedBox(width: 4),
+                    Icon(Icons.check, size: 14, color: catColor),
+                  ],
+                ],
               ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  category.icon,
-                  size: 16,
-                  color: isSelected
-                      ? category.color
-                      : (isDark ? Colors.white54 : Colors.grey),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  category.name,
-                  style: TextStyle(
-                    color: isSelected
-                        ? category.color
-                        : (isDark ? Colors.white70 : Colors.black87),
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    fontSize: 13,
-                  ),
-                ),
-                if (isSelected) ...[
-                  const SizedBox(width: 4),
-                  Icon(Icons.check, size: 14, color: category.color),
-                ],
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    ));
+          );
+        }).toList(),
+      );
+    });
   }
 
   Widget _buildSourceFilters(bool isDark) {
     return Obx(() {
+      // Dinamik kaynaklar varsa kategorize göster
+      if (controller.dynamicSourceCategories.isNotEmpty) {
+        return _buildDynamicSourceFilters(isDark);
+      }
+      
+      // Fallback: eski format
       final sources = controller.availableSources;
       
       if (sources.isEmpty) {
@@ -440,6 +472,132 @@ class SearchFilterSheet extends StatelessWidget {
         ),
       );
     });
+  }
+
+  Widget _buildDynamicSourceFilters(bool isDark) {
+    final categories = controller.dynamicSourceCategories;
+    
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 300),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: categories.map((category) {
+            final color = _getCategoryColor(category.name);
+            
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Kategori başlığı
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Icon(_getCategoryIcon(category.name), size: 14, color: color),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        category.name,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '(${category.sources.length})',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white38 : Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Kaynaklar
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: category.sources.map((source) {
+                      final isSelected = controller.selectedSources.contains(source.name);
+                      
+                      return GestureDetector(
+                        onTap: () => controller.toggleSource(source.name),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? color.withOpacity(0.2)
+                                : (isDark ? const Color(0xFF2A4F67) : Colors.grey.shade100),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isSelected
+                                  ? color
+                                  : (isDark ? const Color(0xFF3A5F77) : Colors.grey.shade300),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                source.name,
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? color
+                                      : (isDark ? Colors.white70 : Colors.black87),
+                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              if (isSelected) ...[
+                                const SizedBox(width: 4),
+                                Icon(Icons.check, size: 12, color: color),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Color _getCategoryColor(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('gündem') || n.contains('son dakika')) return const Color(0xFFEF4444);
+    if (n.contains('spor')) return const Color(0xFF22C55E);
+    if (n.contains('ekonomi') || n.contains('finans')) return const Color(0xFFF59E0B);
+    if (n.contains('teknoloji') || n.contains('bilim')) return const Color(0xFF6366F1);
+    if (n.contains('yabancı') || n.contains('dünya')) return const Color(0xFF8B5CF6);
+    if (n.contains('ajans')) return const Color(0xFF0EA5E9);
+    if (n.contains('yerel')) return const Color(0xFF14B8A6);
+    return const Color(0xFF64748B);
+  }
+
+  IconData _getCategoryIcon(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('gündem')) return Icons.newspaper;
+    if (n.contains('son dakika')) return Icons.flash_on;
+    if (n.contains('spor')) return Icons.sports_soccer;
+    if (n.contains('ekonomi')) return Icons.trending_up;
+    if (n.contains('teknoloji')) return Icons.computer;
+    if (n.contains('bilim')) return Icons.science;
+    if (n.contains('ajans')) return Icons.rss_feed;
+    if (n.contains('yerel')) return Icons.location_city;
+    return Icons.public;
   }
 
   Widget _buildSortOptions(bool isDark) {

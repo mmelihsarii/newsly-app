@@ -7,6 +7,7 @@ import '../models/news_model.dart';
 import '../views/news_detail_page.dart'; // Detay sayfası importu
 import '../utils/colors.dart';
 import '../utils/date_helper.dart';
+import '../utils/news_sources_data.dart';
 
 class FeedPage extends StatefulWidget {
   const FeedPage({super.key});
@@ -162,21 +163,31 @@ class _FeedPageState extends State<FeedPage> {
                           // Kaynak adı
                           if (news.sourceName != null &&
                               news.sourceName!.isNotEmpty) ...[
-                            const Icon(
-                              Icons.article_outlined,
-                              size: 14,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              news.sourceName!,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            Builder(
+                              builder: (context) {
+                                final sourceColor = getSourceCategoryColor(news.sourceName);
+                                return Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.article_outlined,
+                                      size: 14,
+                                      color: sourceColor,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      news.sourceName!,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: sourceColor,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                             const SizedBox(width: 8),
                             const Text(

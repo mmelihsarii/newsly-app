@@ -64,11 +64,31 @@ class NewsService {
     return normalized;
   }
 
-  /// Get user's selected sources from Firestore or local storage
+  // Seçili kaynaklar cache'i
+  Set<String>? _cachedSelectedSources;
+  DateTime? _selectedSourcesCacheTime;
+  static const int _selectedSourcesCacheDuration = 60; // 60 saniye
+
+  /// Seçili kaynaklar cache'ini temizle (giriş/çıkış sonrası çağrılmalı)
+  void clearSelectedSourcesCache() {
+    _cachedSelectedSources = null;
+    _selectedSourcesCacheTime = null;
+    print('🗑️ Seçili kaynaklar cache\'i temizlendi');
+  }
+
+  /// Get user's selected sources from Firestore or local storage (CACHED)
   Future<Set<String>> _getSelectedSources() async {
+    // Cache kontrolü - 60 saniye içinde tekrar Firestore'a gitme
+    if (_cachedSelectedSources != null && _selectedSourcesCacheTime != null) {
+      final age = DateTime.now().difference(_selectedSourcesCacheTime!).inSeconds;
+      if (age < _selectedSourcesCacheDuration) {
+        return _cachedSelectedSources!;
+      }
+    }
+
     Set<String> selectedSet = {};
 
-    // Try Firestore first for logged-in users
+    // Giriş yapmış kullanıcı için önce Firestore'dan oku
     if (_userId != null) {
       try {
         final doc = await _firestore.collection('users').doc(_userId).get();
@@ -77,26 +97,31 @@ class NewsService {
           final List<dynamic>? firestoreSources = data?['selectedSources'];
           if (firestoreSources != null && firestoreSources.isNotEmpty) {
             selectedSet = firestoreSources.cast<String>().toSet();
-            print(
-              '☁️ Firestore\'dan ${selectedSet.length} seçili kaynak okundu',
-            );
+            // Local storage'a da kaydet (senkronizasyon)
+            _storage.write('selected_sources', selectedSet.toList());
+            _cachedSelectedSources = selectedSet;
+            _selectedSourcesCacheTime = DateTime.now();
+            print('☁️ Firestore\'dan ${selectedSet.length} kaynak yüklendi');
             return selectedSet;
           }
         }
       } catch (e) {
-        print('⚠️ Firestore okuma hatası, yerel depo kullanılıyor: $e');
+        print('⚠️ Firestore okuma hatası: $e');
       }
     }
 
-    // Fallback to local storage
-    final List<dynamic>? localSources = _storage.read<List<dynamic>>(
-      'selected_sources',
-    );
+    // Firestore'da yoksa veya hata olduysa local storage'dan oku
+    final List<dynamic>? localSources = _storage.read<List<dynamic>>('selected_sources');
     if (localSources != null && localSources.isNotEmpty) {
       selectedSet = localSources.cast<String>().toSet();
-      print('📱 Yerel depodan ${selectedSet.length} seçili kaynak okundu');
+      _cachedSelectedSources = selectedSet;
+      _selectedSourcesCacheTime = DateTime.now();
+      print('📱 Local storage\'dan ${selectedSet.length} kaynak yüklendi');
+      return selectedSet;
     }
 
+    _cachedSelectedSources = selectedSet;
+    _selectedSourcesCacheTime = DateTime.now();
     return selectedSet;
   }
 
@@ -161,16 +186,6 @@ class NewsService {
                 normalizedSourceId == normalizedSelected) {
               return true;
             }
-
-            // Prefix match (e.g., "ntv" matches "ntv_spor" but not "mynet")
-            if (normalizedSourceName.startsWith(normalizedSelected) ||
-                normalizedSelected.startsWith(normalizedSourceName)) {
-              // Only if the shorter one is at least 3 chars (avoid "a" matching "aspor")
-              if (normalizedSelected.length >= 3 &&
-                  normalizedSourceName.length >= 3) {
-                return true;
-              }
-            }
           }
 
           return false;
@@ -178,9 +193,37 @@ class NewsService {
 
         print("✅ Filtrelenmiş: $originalCount → ${sources.length} kaynak");
       } else {
-        print(
-          "✅ Kullanıcı seçimi yok, tüm kaynaklar kullanılıyor: ${sources.length}",
-        );
+        // Kullanıcı seçimi yoksa - misafir için varsayılan kaynaklar
+        // Giriş yapmış kullanıcı için boş liste (kaynak seçmesi gerekiyor)
+        if (_userId != null) {
+          print("⚠️ Giriş yapmış kullanıcı kaynak seçmemiş - boş liste döndürülüyor");
+          return [];
+        } else {
+          // Misafir kullanıcı - varsayılan kaynaklar
+          final defaultSources = [
+            'sozcu', 'sözcü',
+            'halk_tv', 'halktv', 'halk tv',
+            'cnn_turk', 'cnnturk', 'cnn türk',
+            'a_haber', 'ahaber', 'a haber',
+            'ntv',
+            'fotomac', 'fotomaç',
+            'ajansspor', 'ajans spor',
+            'ekonomi_gazetesi', 'ekonomigazetesi', 'ekonomi gazetesi',
+          ];
+          sources = sources.where((source) {
+            final String? sourceName = source['name'] as String?;
+            if (sourceName == null) return false;
+            final normalized = _normalizeSourceName(sourceName);
+            final nameLower = sourceName.toLowerCase();
+            return defaultSources.any((d) => 
+              normalized.contains(d) || 
+              d.contains(normalized) ||
+              nameLower.contains(d) ||
+              d.contains(nameLower)
+            );
+          }).toList();
+          print("✅ Misafir kullanıcı - varsayılan ${sources.length} kaynak");
+        }
       }
 
       return sources;
@@ -192,11 +235,13 @@ class NewsService {
 
   // 2. Tüm kaynaklardan haberleri çek ve birleştir
   Future<List<NewsModel>> fetchAllNews({bool forceRefresh = false}) async {
+    final stopwatch = Stopwatch()..start();
+    
     // Cache kontrolü - force refresh değilse ve cache geçerliyse cache'den oku
     if (!forceRefresh && _cacheService.isNewsCacheValid()) {
       final cachedNews = _cacheService.getCachedNews();
       if (cachedNews != null && cachedNews.isNotEmpty) {
-        print("⚡ Cache'den ${cachedNews.length} haber yüklendi (hızlı)");
+        print("⚡ Cache'den ${cachedNews.length} haber yüklendi (${stopwatch.elapsedMilliseconds}ms)");
         return cachedNews;
       }
     }
@@ -206,7 +251,6 @@ class NewsService {
 
     if (sources.isEmpty) {
       print("⚠️ Hiç aktif kaynak bulunamadı.");
-      // Cache'de eski veri varsa onu döndür
       final cachedNews = _cacheService.getCachedNews();
       if (cachedNews != null && cachedNews.isNotEmpty) {
         print("📦 Kaynak yok, eski cache kullanılıyor");
@@ -217,38 +261,45 @@ class NewsService {
 
     print("🚀 ${sources.length} kaynaktan haberler çekiliyor...");
 
-    // Her kaynaktan paralel olarak veri çek
-    await Future.wait(
+    // PARALEL ve TIMEOUT'lu istek - max 5 saniye bekle
+    final results = await Future.wait(
       sources.map((source) async {
         String url = source['url'] ?? source['rss_url'] ?? '';
         String sourceName = source['name'] ?? 'Bilinmeyen Kaynak';
         String categoryName = source['category'] ?? 'Gündem';
 
-        if (url.isNotEmpty) {
-          try {
-            var fetchedNews = await _fetchRssFeed(
-              url,
-              sourceName,
-              categoryName,
-            );
-            allNews.addAll(fetchedNews);
-          } catch (e) {
-            print("⚠️ $sourceName ($url) hatası: $e");
-          }
+        if (url.isEmpty) return <NewsModel>[];
+
+        try {
+          return await _fetchRssFeed(url, sourceName, categoryName)
+              .timeout(const Duration(seconds: 5), onTimeout: () {
+            print("⏱️ Timeout: $sourceName");
+            return <NewsModel>[];
+          });
+        } catch (e) {
+          return <NewsModel>[];
         }
       }),
+      eagerError: false, // Bir hata olsa bile diğerlerini bekle
     );
 
-    print("📰 Toplam ${allNews.length} haber çekildi");
+    // Sonuçları birleştir
+    for (final news in results) {
+      allNews.addAll(news);
+    }
 
-    // KRONOLOJİK SIRALAMA - En yeni haberler en üstte
+    print("📰 ${allNews.length} haber çekildi (${stopwatch.elapsedMilliseconds}ms)");
+
+    // KRONOLOJİK SIRALAMA
     allNews = _sortNewsByDate(allNews);
-    print("📅 Haberler kronolojik olarak sıralandı");
 
     // Cache'e kaydet
     if (allNews.isNotEmpty) {
-      await _cacheService.cacheNews(allNews);
+      _cacheService.cacheNews(allNews); // await kaldırıldı - arka planda kaydet
     }
+
+    stopwatch.stop();
+    print("✅ Toplam süre: ${stopwatch.elapsedMilliseconds}ms");
 
     return allNews;
   }
@@ -298,7 +349,7 @@ class NewsService {
     return news;
   }
 
-  // Tekil RSS Çekme ve Parse Etme
+  // Tekil RSS Çekme ve Parse Etme - HIZLI
   Future<List<NewsModel>> _fetchRssFeed(
     String url,
     String sourceName,
@@ -306,11 +357,12 @@ class NewsService {
   ) async {
     List<NewsModel> newsList = [];
     try {
-      final response = await http.get(Uri.parse(url));
+      final response = await http.get(Uri.parse(url))
+          .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final document = XmlDocument.parse(response.body);
-        final items = document.findAllElements('item');
+        final items = document.findAllElements('item').take(15); // Max 15 haber per kaynak
 
         for (var item in items) {
           final title = item.findElements('title').singleOrNull?.innerText;
@@ -355,7 +407,7 @@ class NewsService {
         }
       }
     } catch (e) {
-      print("RSS Parse Hatası ($url): $e");
+      // Sessizce geç - timeout veya parse hatası
     }
     return newsList;
   }
