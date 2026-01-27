@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_storage/get_storage.dart';
 import '../models/source_model.dart';
+import 'source_selection_controller.dart';
 
 class FollowController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -16,6 +17,24 @@ class FollowController extends GetxController {
   void onInit() {
     super.onInit();
     fetchSources();
+    
+    // SourceSelectionController'daki değişiklikleri dinle
+    _listenToSourceChanges();
+  }
+  
+  /// Kaynak seçimi değişikliklerini dinle
+  void _listenToSourceChanges() {
+    try {
+      if (Get.isRegistered<SourceSelectionController>()) {
+        final sourceController = Get.find<SourceSelectionController>();
+        ever(sourceController.selectedSources, (_) {
+          print('🔄 Kaynak seçimi değişti, takip listesi güncelleniyor...');
+          fetchSources();
+        });
+      }
+    } catch (e) {
+      print('⚠️ SourceSelectionController dinleme hatası: $e');
+    }
   }
 
   /// Firestore'dan tüm aktif kaynakları çek ve seçilenleri filtrele

@@ -20,7 +20,7 @@ class CacheService {
   static const String _sectionCacheTimeKey = 'section_cache_time';
 
   // Cache süresi (dakika)
-  static const int _cacheDurationMinutes = 15;
+  static const int _cacheDurationMinutes = 5; // 15'ten 5'e düşürüldü - daha taze haberler
 
   // ═══════════════════════════════════════════════════════════════════════════
   // HABER CACHE

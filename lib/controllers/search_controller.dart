@@ -260,8 +260,29 @@ class NewsSearchController extends GetxController {
 
     try {
       _applyFilters();
+      
+      // Filtre aktif ama arama yok ise, tüm filtrelenmiş sonuçları göster
+      if (searchQuery.value.isEmpty && isFilterActive.value) {
+        hasExactMatch.value = true; // Sonuçları göstermek için
+      }
     } catch (e) {
       print('Arama hatası: $e');
+    } finally {
+      isSearching.value = false;
+    }
+  }
+  
+  /// Sadece filtreleri uygula (arama olmadan)
+  void applyFiltersOnly() {
+    searchQuery.value = '';
+    suggestedResults.clear();
+    hasExactMatch.value = true;
+    isSearching.value = true;
+    
+    try {
+      _applyFilters();
+    } catch (e) {
+      print('Filtre hatası: $e');
     } finally {
       isSearching.value = false;
     }
@@ -290,21 +311,32 @@ class NewsSearchController extends GetxController {
     // 2. Kategori filtresi
     if (selectedCategories.isNotEmpty) {
       filteredNews = filteredNews.where((news) {
-        final categoryName = _normalizeText(news.categoryName ?? '');
+        final newsCategoryName = _normalizeText(news.categoryName ?? '');
+        final newsSourceName = _normalizeText(news.sourceName ?? '');
         
         for (final catId in selectedCategories) {
+          final normalizedCatId = _normalizeText(catId);
+          
+          // Kategori adı eşleşmesi
+          if (newsCategoryName.contains(normalizedCatId) ||
+              normalizedCatId.contains(newsCategoryName)) {
+            return true;
+          }
+          
+          // Kategori objesinden kaynak kontrolü
           final category = getCategoryById(catId);
           if (category != null) {
             final normalizedCatName = _normalizeText(category.name);
-            if (categoryName.contains(normalizedCatName) ||
-                normalizedCatName.contains(categoryName)) {
+            if (newsCategoryName.contains(normalizedCatName) ||
+                normalizedCatName.contains(newsCategoryName)) {
               return true;
             }
-            // Kaynak adı kategoriye ait mi kontrol et
+            
+            // Kategorideki kaynakları kontrol et
             for (final source in category.sources) {
               final normalizedSourceName = _normalizeText(source.name);
-              final newsSourceName = _normalizeText(news.sourceName ?? '');
-              if (newsSourceName.contains(normalizedSourceName) ||
+              if (newsSourceName == normalizedSourceName ||
+                  newsSourceName.contains(normalizedSourceName) ||
                   normalizedSourceName.contains(newsSourceName)) {
                 return true;
               }
@@ -318,8 +350,17 @@ class NewsSearchController extends GetxController {
     // 3. Kaynak filtresi
     if (selectedSources.isNotEmpty) {
       filteredNews = filteredNews.where((news) {
-        final sourceName = news.sourceName ?? '';
-        return selectedSources.contains(sourceName);
+        final newsSourceName = _normalizeText(news.sourceName ?? '');
+        
+        for (final selectedSource in selectedSources) {
+          final normalizedSelected = _normalizeText(selectedSource);
+          if (newsSourceName == normalizedSelected ||
+              newsSourceName.contains(normalizedSelected) ||
+              normalizedSelected.contains(newsSourceName)) {
+            return true;
+          }
+        }
+        return false;
       }).toList();
     }
 
@@ -390,6 +431,9 @@ class NewsSearchController extends GetxController {
         filteredNews = [];
         suggestedResults.value = allNews.take(5).toList();
       }
+    } else if (isFilterActive.value) {
+      // Arama yok ama filtre aktif - filtrelenmiş sonuçları göster
+      hasExactMatch.value = true;
     }
 
     // 5. Sıralama

@@ -7,6 +7,8 @@ import '../models/source_model.dart';
 import '../services/source_service.dart';
 import '../services/news_service.dart';
 import '../utils/news_sources_data.dart';
+import 'home_controller.dart';
+import 'follow_controller.dart';
 
 /// Controller for managing news source selection
 /// Supports both dynamic (Firestore) and static (local) sources
@@ -23,8 +25,14 @@ class SourceSelectionController extends GetxController {
   static const String _selectedSourcesKey = 'selected_sources';
   static const String _subscribedCategoriesKey = 'subscribed_categories';
 
-  // Selected source IDs
-  RxSet<String> selectedSources = <String>{}.obs;
+  // === KAYDEDİLMİŞ KAYNAKLAR (Gerçek veri) ===
+  RxSet<String> _savedSources = <String>{}.obs;
+  
+  // === GEÇİCİ SEÇİMLER (UI için - kaydetmeden önce) ===
+  RxSet<String> tempSelectedSources = <String>{}.obs;
+  
+  // Dışarıdan erişim için (geriye uyumluluk)
+  RxSet<String> get selectedSources => _savedSources;
   
   // Subscribed category IDs (for notifications)
   RxSet<int> subscribedCategories = <int>{}.obs;
@@ -39,6 +47,9 @@ class SourceSelectionController extends GetxController {
 
   // Use dynamic sources flag
   var useDynamicSources = true.obs;
+  
+  // Değişiklik var mı? (Kaydet butonu için)
+  bool get hasChanges => !_setEquals(tempSelectedSources, _savedSources);
   
   // Kategori ID eşleştirmesi (Backend ile uyumlu)
   static const Map<String, int> categoryIdMap = {
@@ -65,6 +76,34 @@ class SourceSelectionController extends GetxController {
     _loadSources();
     _loadDynamicSources();
     _loadSubscribedCategories();
+  }
+  
+  /// Kaynak seçim ekranına girerken çağrılır - geçici state'i sıfırla
+  Future<void> initTempSelection() async {
+    // Önce kaynakların yüklenmesini bekle
+    await _loadSources();
+    
+    // Geçici seçimleri kayıtlı duruma sıfırla
+    tempSelectedSources.clear();
+    tempSelectedSources.addAll(_savedSources);
+    print('🔄 Geçici seçimler sıfırlandı: ${tempSelectedSources.length} kaynak');
+    print('📌 Kayıtlı kaynaklar: $_savedSources');
+  }
+  
+  /// Dışarıdan kaynak eklemek için (AddSourceView'dan)
+  void setSelectedSources(Set<String> sources) {
+    _savedSources.clear();
+    _savedSources.addAll(sources);
+    tempSelectedSources.clear();
+    tempSelectedSources.addAll(sources);
+    print('📌 Kaynaklar dışarıdan güncellendi: ${sources.length} kaynak');
+  }
+  
+  /// Değişiklikleri iptal et - geçici state'i kayıtlı haline döndür
+  void cancelChanges() {
+    tempSelectedSources.clear();
+    tempSelectedSources.addAll(_savedSources);
+    print('↩️ Değişiklikler iptal edildi');
   }
   
   /// Load subscribed categories from local storage
@@ -107,6 +146,8 @@ class SourceSelectionController extends GetxController {
 
   /// Refresh dynamic sources
   Future<void> refreshSources() async {
+    // Cache'i temizle
+    _sourceService.clearCache();
     await _loadDynamicSources();
   }
 
@@ -127,7 +168,7 @@ class SourceSelectionController extends GetxController {
       _loadFromLocalStorage();
 
       // 2. Sync with Firestore if user is logged in
-      if (selectedSources.isEmpty && _userId != null) {
+      if (_savedSources.isEmpty && _userId != null) {
         await _syncWithFirestore();
       } else if (_userId != null) {
         // Background sync
@@ -135,9 +176,14 @@ class SourceSelectionController extends GetxController {
           print("⚠️ Arka plan senkronizasyon hatası: $e");
         });
       }
+      
+      // Geçici seçimleri de güncelle
+      tempSelectedSources.clear();
+      tempSelectedSources.addAll(_savedSources);
+      
     } catch (e) {
       print('❌ Kaynak yükleme hatası: $e');
-      if (selectedSources.isEmpty) _loadFromLocalStorage();
+      if (_savedSources.isEmpty) _loadFromLocalStorage();
     } finally {
       isLoading.value = false;
     }
@@ -156,9 +202,9 @@ class SourceSelectionController extends GetxController {
         if (firestoreSources != null && firestoreSources.isNotEmpty) {
           final newSources = firestoreSources.cast<String>().toSet();
           
-          if (!_setEquals(selectedSources, newSources)) {
-            print('☁️ Firestore\'dan güncelleme: ${selectedSources.length} → ${newSources.length}');
-            selectedSources.assignAll(newSources);
+          if (!_setEquals(_savedSources, newSources)) {
+            print('☁️ Firestore\'dan güncelleme: ${_savedSources.length} → ${newSources.length}');
+            _savedSources.assignAll(newSources);
             _saveToLocalStorage();
           }
         }
@@ -176,17 +222,17 @@ class SourceSelectionController extends GetxController {
   void _loadFromLocalStorage() {
     final List<dynamic>? stored = _storage.read<List<dynamic>>(_selectedSourcesKey);
     if (stored != null && stored.isNotEmpty) {
-      selectedSources.clear();
-      selectedSources.addAll(stored.cast<String>().toSet());
-      print('📱 Yerel depodan ${selectedSources.length} kaynak yüklendi');
+      _savedSources.clear();
+      _savedSources.addAll(stored.cast<String>().toSet());
+      print('📱 Yerel depodan ${_savedSources.length} kaynak yüklendi');
     } else {
-      selectedSources.clear();
+      _savedSources.clear();
       print('🆕 Varsayılan olarak hiçbir kaynak seçili değil');
     }
   }
 
   void _saveToLocalStorage() {
-    _storage.write(_selectedSourcesKey, selectedSources.toList());
+    _storage.write(_selectedSourcesKey, _savedSources.toList());
   }
 
   Future<void> _saveToFirestore() async {
@@ -194,23 +240,76 @@ class SourceSelectionController extends GetxController {
 
     try {
       await _db.collection('users').doc(_userId).set({
-        'selectedSources': selectedSources.toList(),
-        'followed_source_ids': selectedSources.toList(),
+        'selectedSources': _savedSources.toList(),
+        'followed_source_ids': _savedSources.toList(),
         'selectedSourcesUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      print('☁️ Firestore\'a ${selectedSources.length} kaynak kaydedildi');
+      print('☁️ Firestore\'a ${_savedSources.length} kaynak kaydedildi');
     } catch (e) {
       print('❌ Firestore kaydetme hatası: $e');
     }
   }
 
-  Future<void> _saveAll() async {
-    _saveToLocalStorage();
-    await _saveToFirestore();
-    await _updateCategorySubscriptions();
+  /// TÜM DEĞİŞİKLİKLERİ KAYDET (Devam Et butonunda çağrılır)
+  Future<void> saveAllChanges() async {
+    isSaving.value = true;
     
-    // NewsService cache'ini temizle - yeni kaynak seçimiyle haberler yenilensin
-    _clearNewsServiceCache();
+    try {
+      // Geçici seçimleri kalıcı yap
+      _savedSources.clear();
+      _savedSources.addAll(tempSelectedSources);
+      
+      // Kaydet - local storage hemen
+      _saveToLocalStorage();
+      
+      // Firestore'a kaydet (timeout ile)
+      try {
+        await _saveToFirestore().timeout(const Duration(seconds: 5));
+      } catch (e) {
+        print('⚠️ Firestore kaydetme timeout/hata: $e');
+      }
+      
+      // NewsService cache'ini temizle
+      _clearNewsServiceCache();
+      
+      // Kategori aboneliklerini arka planda güncelle (beklemeden)
+      _updateCategorySubscriptions().catchError((e) {
+        print('⚠️ Kategori abonelik hatası: $e');
+      });
+      
+      // HomeController'ı yenile (eğer varsa)
+      _refreshHomeController();
+      
+      print('✅ ${_savedSources.length} kaynak kaydedildi');
+    } catch (e) {
+      print('❌ Kaydetme hatası: $e');
+    } finally {
+      isSaving.value = false;
+    }
+  }
+  
+  /// HomeController'ı yenile
+  void _refreshHomeController() {
+    try {
+      if (Get.isRegistered<HomeController>()) {
+        final homeController = Get.find<HomeController>();
+        homeController.refreshNews();
+        print('🔄 HomeController yenilendi');
+      }
+    } catch (e) {
+      print('⚠️ HomeController yenileme hatası: $e');
+    }
+    
+    // FollowController'ı da yenile
+    try {
+      if (Get.isRegistered<FollowController>()) {
+        final followController = Get.find<FollowController>();
+        followController.refreshSources();
+        print('🔄 FollowController yenilendi');
+      }
+    } catch (e) {
+      print('⚠️ FollowController yenileme hatası: $e');
+    }
   }
   
   /// NewsService cache'ini temizle
@@ -231,7 +330,7 @@ class SourceSelectionController extends GetxController {
       // Seçili kaynakların kategorilerini bul
       final selectedCategoryIds = <int>{};
       
-      for (final sourceId in selectedSources) {
+      for (final sourceId in _savedSources) {
         final categoryId = _getCategoryIdForSource(sourceId);
         if (categoryId != null) {
           selectedCategoryIds.add(categoryId);
@@ -328,46 +427,93 @@ class SourceSelectionController extends GetxController {
     }
   }
 
-  /// Toggle a single source selection
-  Future<void> toggleSource(String sourceId) async {
+  /// Toggle a single source selection (GEÇİCİ - kaydetmez)
+  void toggleSource(String sourceId) {
     print("🖱️ Toggle Source: $sourceId");
-    if (selectedSources.contains(sourceId)) {
-      selectedSources.remove(sourceId);
-    } else {
-      selectedSources.add(sourceId);
+    
+    // Önce mevcut seçili mi kontrol et (normalize ile)
+    String? matchedId;
+    for (final selected in tempSelectedSources) {
+      if (selected == sourceId || 
+          selected.toLowerCase() == sourceId.toLowerCase() ||
+          _normalizeForComparison(selected) == _normalizeForComparison(sourceId)) {
+        matchedId = selected;
+        break;
+      }
     }
-    await _saveAll();
+    
+    if (matchedId != null) {
+      tempSelectedSources.remove(matchedId);
+      print("➖ Kaynak kaldırıldı: $matchedId");
+    } else {
+      tempSelectedSources.add(sourceId);
+      print("➕ Kaynak eklendi: $sourceId");
+    }
+    // NOT: Artık otomatik kaydetmiyor!
   }
 
-  /// Check if a source is selected
+  /// Check if a source is selected (GEÇİCİ state'den kontrol)
+  /// Hem ID hem name ile kontrol eder
   bool isSourceSelected(String sourceId) {
-    return selectedSources.contains(sourceId);
+    // Direkt eşleşme
+    if (tempSelectedSources.contains(sourceId)) {
+      return true;
+    }
+    
+    // Normalize edilmiş eşleşme
+    final normalizedId = _normalizeForComparison(sourceId);
+    for (final selected in tempSelectedSources) {
+      final normalizedSelected = _normalizeForComparison(selected);
+      if (normalizedId == normalizedSelected) {
+        return true;
+      }
+      // Kaynak adı ile de kontrol et
+      if (sourceId.toLowerCase() == selected.toLowerCase()) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  /// Karşılaştırma için normalize et
+  String _normalizeForComparison(String text) {
+    return text
+        .toLowerCase()
+        .replaceAll('ı', 'i')
+        .replaceAll('ğ', 'g')
+        .replaceAll('ü', 'u')
+        .replaceAll('ş', 's')
+        .replaceAll('ö', 'o')
+        .replaceAll('ç', 'c')
+        .replaceAll(' ', '_')
+        .replaceAll('-', '_')
+        .replaceAll(RegExp(r'[^a-z0-9_]'), '')
+        .trim();
   }
 
-  /// Select all sources in a category (works with both dynamic and static)
-  Future<void> selectAllInCategory(String categoryId) async {
+  /// Select all sources in a category (GEÇİCİ)
+  void selectAllInCategory(String categoryId) {
     final sources = _getSourcesInCategory(categoryId);
     for (final sourceId in sources) {
-      selectedSources.add(sourceId);
+      tempSelectedSources.add(sourceId);
     }
-    await _saveAll();
   }
 
-  /// Deselect all sources in a category
-  Future<void> deselectAllInCategory(String categoryId) async {
+  /// Deselect all sources in a category (GEÇİCİ)
+  void deselectAllInCategory(String categoryId) {
     final sources = _getSourcesInCategory(categoryId);
     for (final sourceId in sources) {
-      selectedSources.remove(sourceId);
+      tempSelectedSources.remove(sourceId);
     }
-    await _saveAll();
   }
 
-  /// Toggle all sources in a category
-  Future<void> toggleCategorySelection(String categoryId) async {
+  /// Toggle all sources in a category (GEÇİCİ)
+  void toggleCategorySelection(String categoryId) {
     if (isCategoryFullySelected(categoryId)) {
-      await deselectAllInCategory(categoryId);
+      deselectAllInCategory(categoryId);
     } else {
-      await selectAllInCategory(categoryId);
+      selectAllInCategory(categoryId);
     }
   }
 
@@ -379,38 +525,40 @@ class SourceSelectionController extends GetxController {
         (c) => c.id == categoryId || c.name == categoryId
       );
       if (category != null) {
-        return category.sources.map((s) => s.id).toList();
+        // Name kullan (NewsService ile uyumlu)
+        return category.sources.map((s) => s.name).toList();
       }
     }
     
     // Fallback to static
     final staticCategory = getCategoryById(categoryId);
     if (staticCategory != null) {
-      return staticCategory.sources.map((s) => s.id).toList();
+      // Name kullan (NewsService ile uyumlu)
+      return staticCategory.sources.map((s) => s.name).toList();
     }
     
     return [];
   }
 
-  /// Check if all sources in a category are selected
+  /// Check if all sources in a category are selected (GEÇİCİ state)
   bool isCategoryFullySelected(String categoryId) {
     final sources = _getSourcesInCategory(categoryId);
     if (sources.isEmpty) return false;
-    return sources.every((id) => selectedSources.contains(id));
+    return sources.every((name) => isSourceSelected(name));
   }
 
-  /// Check if any source in a category is selected
+  /// Check if any source in a category is selected (GEÇİCİ state)
   bool isCategoryPartiallySelected(String categoryId) {
     final sources = _getSourcesInCategory(categoryId);
     if (sources.isEmpty) return false;
-    final selectedCount = sources.where((id) => selectedSources.contains(id)).length;
+    final selectedCount = sources.where((name) => isSourceSelected(name)).length;
     return selectedCount > 0 && selectedCount < sources.length;
   }
 
-  /// Get count of selected sources in a category
+  /// Get count of selected sources in a category (GEÇİCİ state)
   int getSelectedCountInCategory(String categoryId) {
     final sources = _getSourcesInCategory(categoryId);
-    return sources.where((id) => selectedSources.contains(id)).length;
+    return sources.where((name) => isSourceSelected(name)).length;
   }
 
   /// Get total source count in a category
@@ -418,40 +566,31 @@ class SourceSelectionController extends GetxController {
     return _getSourcesInCategory(categoryId).length;
   }
 
-  /// Select all sources
-  Future<void> selectAll() async {
-    selectedSources.clear();
+  /// Select all sources (GEÇİCİ)
+  void selectAll() {
+    tempSelectedSources.clear();
     
     if (useDynamicSources.value && dynamicCategories.isNotEmpty) {
       for (final category in dynamicCategories) {
         for (final source in category.sources) {
-          selectedSources.add(source.id);
+          tempSelectedSources.add(source.id);
         }
       }
     } else {
-      selectedSources.addAll(getAllSourceIds().toSet());
+      tempSelectedSources.addAll(getAllSourceIds().toSet());
     }
-    
-    await _saveAll();
   }
 
-  /// Deselect all sources
-  Future<void> deselectAll() async {
-    selectedSources.clear();
-    
-    // Tüm kategori aboneliklerinden çık
-    for (final catId in subscribedCategories.toList()) {
-      await _unsubscribeFromCategory(catId);
-    }
-    subscribedCategories.clear();
-    _storage.write(_subscribedCategoriesKey, []);
-    
-    _saveToLocalStorage();
-    await _saveToFirestore();
+  /// Deselect all sources (GEÇİCİ)
+  void deselectAll() {
+    tempSelectedSources.clear();
   }
 
-  /// Get total selected count
-  int get totalSelectedCount => selectedSources.length;
+  /// Get total selected count (GEÇİCİ state)
+  int get totalSelectedCount => tempSelectedSources.length;
+  
+  /// Kayıtlı kaynak sayısı
+  int get savedSourcesCount => _savedSources.length;
 
   /// Get total available sources count
   int get totalSourcesCount {
@@ -465,5 +604,19 @@ class SourceSelectionController extends GetxController {
   Future<void> syncWithFirestore() async {
     await _loadSources();
     await _loadDynamicSources();
+  }
+  
+  /// Tüm verileri temizle (hesap silme/çıkış için)
+  void clearAllData() {
+    // Bellekteki verileri temizle
+    _savedSources.clear();
+    tempSelectedSources.clear();
+    subscribedCategories.clear();
+    
+    // Local storage'ı temizle
+    _storage.remove(_selectedSourcesKey);
+    _storage.remove(_subscribedCategoriesKey);
+    
+    print('🗑️ SourceSelectionController tüm veriler temizlendi');
   }
 }

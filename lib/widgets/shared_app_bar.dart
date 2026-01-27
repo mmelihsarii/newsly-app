@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
+import '../services/user_service.dart';
 import '../controllers/dashboard_controller.dart';
 import '../controllers/home_controller.dart';
 import '../views/login_view.dart';
@@ -180,32 +182,64 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                 ),
                 child: Row(
                   children: [
+                    // Profil Fotoğrafı - UserService'den
                     Obx(() {
-                      final user = authService.user.value;
+                      final userService = Get.find<UserService>();
+                      final profile = userService.userProfile.value;
+                      final photoUrl = profile?['photoUrl'];
+                      
                       return CircleAvatar(
                         radius: 30,
                         backgroundColor: Colors.white.withOpacity(0.3),
-                        backgroundImage: user?.photoURL != null
-                            ? NetworkImage(user!.photoURL!)
-                            : null,
-                        child: user?.photoURL == null
-                            ? const Icon(
+                        child: photoUrl != null && photoUrl.isNotEmpty
+                            ? ClipOval(
+                                child: CachedNetworkImage(
+                                  imageUrl: photoUrl,
+                                  width: 60,
+                                  height: 60,
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, __) => const Icon(
+                                    Icons.person,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                  errorWidget: (_, __, ___) => const Icon(
+                                    Icons.person,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                ),
+                              )
+                            : const Icon(
                                 Icons.person,
                                 color: Colors.white,
                                 size: 30,
-                              )
-                            : null,
+                              ),
                       );
                     }),
                     const SizedBox(width: 15),
+                    // İsim ve Email - UserService'den
                     Expanded(
                       child: Obx(() {
+                        final userService = Get.find<UserService>();
+                        final profile = userService.userProfile.value;
                         final user = authService.user.value;
+                        
+                        // Firestore'dan isim al
+                        final firstName = profile?['firstName']?.toString() ?? '';
+                        final lastName = profile?['lastName']?.toString() ?? '';
+                        String displayName = '$firstName $lastName'.trim();
+                        
+                        // Firestore'da yoksa Firebase Auth'dan al
+                        if (displayName.isEmpty) {
+                          displayName = user?.displayName ?? 'Misafir';
+                        }
+                        
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              user?.displayName ?? 'Misafir',
+                              displayName,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
@@ -255,7 +289,7 @@ class _MainMenuDrawerState extends State<MainMenuDrawer> {
                             // Sadece uyarı göster, login'e yönlendirme
                             Get.snackbar(
                               'Üyelik Gerekli',
-                              'Kaynak seçimi için lütfen üye girişi yapın. Misafir kullanıcılar sadece CNN Türk, NTV ve A Spor haberlerini görebilir.',
+                              'Misafir kullanıcılar sadece belirli haberleri görebilir.',
                               snackPosition: SnackPosition.BOTTOM,
                               backgroundColor: Colors.orange,
                               colorText: Colors.white,

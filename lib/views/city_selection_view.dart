@@ -68,8 +68,8 @@ class _CitySelectionViewState extends State<CitySelectionView> {
       Get.offAll(() => LoginView());
       return;
     }
-    // Şehir seçimi atlandığında kaynak seçimine git
-    Get.to(() => SourceSelectionView());
+    // Şehir seçimi atlandığında kaynak seçimine git (geri dönemez)
+    Get.offAll(() => const SourceSelectionView());
   }
 
   Future<void> _next() async {
@@ -89,15 +89,11 @@ class _CitySelectionViewState extends State<CitySelectionView> {
       }
 
       // Firestore'a şehri kaydet
-      await Get.find<UserService>().updateUserProfile(
-        displayName: Get.find<UserService>().userProfile.value?['displayName'],
-      );
+      final userService = Get.find<UserService>();
+      await userService.saveSelectedCity(_selectedCity!);
 
-      // Şehir bilgisini ayrıca kaydet
-      // TODO: UserService'e city field eklenebilir
-
-      // Kaynak seçimine git
-      Get.to(() => SourceSelectionView());
+      // Kaynak seçimine git (geri dönemez)
+      Get.offAll(() => const SourceSelectionView());
     }
   }
 

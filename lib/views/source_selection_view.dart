@@ -1,13 +1,99 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../controllers/source_selection_controller.dart';
 import '../models/source_model.dart';
+import '../services/user_service.dart';
 import '../utils/news_sources_data.dart';
 import '../utils/colors.dart';
 import 'dashboard_view.dart';
 
-class SourceSelectionView extends StatelessWidget {
-  SourceSelectionView({super.key});
+class SourceSelectionView extends StatefulWidget {
+  const SourceSelectionView({super.key});
+
+  @override
+  State<SourceSelectionView> createState() => _SourceSelectionViewState();
+}
+
+class _SourceSelectionViewState extends State<SourceSelectionView> {
+  late final SourceSelectionController controller;
+  bool _isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<SourceSelectionController>();
+    _isLoggedIn = FirebaseAuth.instance.currentUser != null;
+    
+    // Geçici seçimleri kayıtlı duruma sıfırla
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.initTempSelection();
+    });
+  }
+
+  /// Geri tuşuna basıldığında
+  Future<bool> _onWillPop() async {
+    // Giriş yapmış kullanıcı ve kayıtlı kaynak yoksa çıkışı engelle
+    if (_isLoggedIn && controller.savedSourcesCount == 0) {
+      _showMustSelectSourcesDialog();
+      return false;
+    }
+    
+    // Kaydedilmemiş değişiklik varsa uyar
+    if (controller.hasChanges) {
+      final shouldExit = await _showUnsavedChangesDialog();
+      if (shouldExit == true) {
+        controller.cancelChanges();
+        return true;
+      }
+      return false;
+    }
+    
+    return true;
+  }
+
+  /// Kaynak seçmeden çıkılamaz uyarısı
+  void _showMustSelectSourcesDialog() {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Kaynak Seçimi Gerekli'),
+        content: const Text(
+          'Devam etmek için en az 1 kaynak seçmelisiniz.\n\n'
+          'Takip etmek istediğiniz haber kaynaklarını seçin ve "Devam Et" butonuna basın.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Tamam'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Kaydedilmemiş değişiklik uyarısı
+  Future<bool?> _showUnsavedChangesDialog() {
+    return Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Kaydedilmemiş Değişiklikler'),
+        content: const Text(
+          'Yaptığınız değişiklikler kaydedilmedi.\n\n'
+          'Çıkarsanız değişiklikler kaybolacak.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('İptal'),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Çık'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Color _getCategoryColor(String name) {
     final n = name.toLowerCase();
@@ -34,171 +120,213 @@ class SourceSelectionView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<SourceSelectionController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0D1B2A) : const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF1A2F47) : Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: Text(
-          'Kaynak Seçimi',
-          style: TextStyle(
-            color: isDark ? Colors.white : Colors.black87,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: isDark ? Colors.white : Colors.black87),
-          onPressed: () => Get.back(),
-        ),
-        actions: [
-          Obx(() => controller.isSourcesLoading.value
-              ? const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                )
-              : IconButton(
-                  icon: Icon(Icons.refresh, color: isDark ? Colors.white70 : Colors.black54),
-                  onPressed: () => controller.refreshSources(),
-                )),
-          Obx(() => TextButton(
-                onPressed: () => controller.totalSelectedCount == controller.totalSourcesCount
-                    ? controller.deselectAll()
-                    : controller.selectAll(),
-                child: Text(
-                  controller.totalSelectedCount == controller.totalSourcesCount ? 'Hiçbiri' : 'Tümü',
-                  style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
-                ),
-              )),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(56),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1A2F47) : Colors.white,
-              border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF2A4F67) : Colors.grey.shade200)),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final canPop = await _onWillPop();
+        if (canPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: isDark ? const Color(0xFF0D1B2A) : const Color(0xFFF5F5F5),
+        appBar: AppBar(
+          backgroundColor: isDark ? const Color(0xFF1A2F47) : Colors.white,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          title: Text(
+            'Kaynak Seçimi',
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
             ),
-            child: Obx(() => Row(
-                  children: [
-                    Icon(Icons.check_circle, color: AppColors.primary, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${controller.totalSelectedCount} / ${controller.totalSourcesCount} kaynak seçili',
-                      style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade700, fontSize: 14),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: controller.dynamicCategories.isNotEmpty
-                            ? Colors.green.withOpacity(0.15)
-                            : Colors.orange.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            controller.dynamicCategories.isNotEmpty ? Icons.cloud : Icons.storage,
-                            size: 14,
-                            color: controller.dynamicCategories.isNotEmpty ? Colors.green : Colors.orange,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            controller.dynamicCategories.isNotEmpty ? 'Dinamik' : 'Statik',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: controller.dynamicCategories.isNotEmpty ? Colors.green : Colors.orange,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                )),
           ),
-        ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Obx(() {
-              if (controller.isSourcesLoading.value && controller.dynamicCategories.isEmpty) {
-                return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-              }
-
-              final categories = controller.dynamicCategories.isNotEmpty
-                  ? controller.dynamicCategories
-                  : null;
-
-              if (categories != null) {
-                return ListView.builder(
-                  padding: const EdgeInsets.only(top: 16, bottom: 16),
-                  itemCount: categories.length,
-                  itemBuilder: (context, index) {
-                    return _buildDynamicCategory(controller, categories[index], isDark);
+          centerTitle: true,
+          // Giriş yapmış ve kaynak seçmemiş kullanıcı için geri butonu yok
+          leading: _isLoggedIn 
+              ? Obx(() => controller.savedSourcesCount == 0
+                  ? const SizedBox.shrink()
+                  : IconButton(
+                      icon: Icon(Icons.arrow_back_ios, color: isDark ? Colors.white : Colors.black87),
+                      onPressed: () async {
+                        final canPop = await _onWillPop();
+                        if (canPop) Get.back();
+                      },
+                    ))
+              : IconButton(
+                  icon: Icon(Icons.arrow_back_ios, color: isDark ? Colors.white : Colors.black87),
+                  onPressed: () async {
+                    final canPop = await _onWillPop();
+                    if (canPop) Get.back();
                   },
-                );
-              }
-
-              // Static fallback
-              final staticCategories = kNewsSources.where((c) => c.id.toLowerCase() != 'genel').toList()
-                ..sort((a, b) => a.name.compareTo(b.name));
-
-              return ListView.builder(
-                padding: const EdgeInsets.only(top: 16, bottom: 16),
-                itemCount: staticCategories.length,
-                itemBuilder: (context, index) {
-                  return _buildStaticCategory(controller, staticCategories[index], isDark);
-                },
-              );
-            }),
-          ),
-          // Bottom Button
-          SafeArea(
-            top: false,
+                ),
+          automaticallyImplyLeading: false,
+          actions: [
+            Obx(() => controller.isSourcesLoading.value
+                ? const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                  )
+                : IconButton(
+                    icon: Icon(Icons.refresh, color: isDark ? Colors.white70 : Colors.black54),
+                    onPressed: () => controller.refreshSources(),
+                  )),
+            Obx(() => TextButton(
+                  onPressed: () => controller.totalSelectedCount == controller.totalSourcesCount
+                      ? controller.deselectAll()
+                      : controller.selectAll(),
+                  child: Text(
+                    controller.totalSelectedCount == controller.totalSourcesCount ? 'Hiçbiri' : 'Tümü',
+                    style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                  ),
+                )),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(56),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1A2F47) : Colors.white,
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, -4)),
-                ],
+                border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF2A4F67) : Colors.grey.shade200)),
               ),
-              child: Obx(() => ElevatedButton(
-                    onPressed: controller.totalSelectedCount > 0 ? () => Get.offAll(() => DashboardView()) : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                      minimumSize: const Size(double.infinity, 56),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      controller.totalSelectedCount > 0
-                          ? 'Devam Et (${controller.totalSelectedCount} kaynak)'
-                          : 'En az 1 kaynak seçin',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
+              child: Obx(() => Row(
+                    children: [
+                      Icon(Icons.check_circle, color: AppColors.primary, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${controller.totalSelectedCount} / ${controller.totalSourcesCount} kaynak seçili',
+                        style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade700, fontSize: 14),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: controller.dynamicCategories.isNotEmpty
+                              ? Colors.green.withOpacity(0.15)
+                              : Colors.orange.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              controller.dynamicCategories.isNotEmpty ? Icons.cloud : Icons.storage,
+                              size: 14,
+                              color: controller.dynamicCategories.isNotEmpty ? Colors.green : Colors.orange,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              controller.dynamicCategories.isNotEmpty ? 'Dinamik' : 'Statik',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: controller.dynamicCategories.isNotEmpty ? Colors.green : Colors.orange,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   )),
             ),
           ),
-        ],
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: Obx(() {
+                if (controller.isSourcesLoading.value && controller.dynamicCategories.isEmpty) {
+                  return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                }
+
+                final categories = controller.dynamicCategories.isNotEmpty
+                    ? controller.dynamicCategories
+                    : null;
+
+                if (categories != null) {
+                  return ListView.builder(
+                    padding: const EdgeInsets.only(top: 16, bottom: 16),
+                    itemCount: categories.length,
+                    itemBuilder: (context, index) {
+                      return _buildDynamicCategory(categories[index], isDark);
+                    },
+                  );
+                }
+
+                // Static fallback
+                final staticCategories = kNewsSources.where((c) => c.id.toLowerCase() != 'genel').toList()
+                  ..sort((a, b) => a.name.compareTo(b.name));
+
+                return ListView.builder(
+                  padding: const EdgeInsets.only(top: 16, bottom: 16),
+                  itemCount: staticCategories.length,
+                  itemBuilder: (context, index) {
+                    return _buildStaticCategory(staticCategories[index], isDark);
+                  },
+                );
+              }),
+            ),
+            // Bottom Button
+            SafeArea(
+              top: false,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1A2F47) : Colors.white,
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, -4)),
+                  ],
+                ),
+                child: Obx(() => ElevatedButton(
+                      onPressed: controller.totalSelectedCount > 0 && !controller.isSaving.value
+                          ? () async {
+                              // Önce kaydet
+                              await controller.saveAllChanges();
+                              
+                              // Onboarding'i tamamlandı olarak işaretle
+                              final userService = Get.find<UserService>();
+                              await userService.markOnboardingCompleted();
+                              
+                              // Dashboard'a git (controller'lar yeniden yüklenecek)
+                              Get.offAll(() => DashboardView());
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                        minimumSize: const Size(double.infinity, 56),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                        elevation: 0,
+                      ),
+                      child: controller.isSaving.value
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : Text(
+                              controller.totalSelectedCount > 0
+                                  ? 'Devam Et (${controller.totalSelectedCount} kaynak)'
+                                  : 'En az 1 kaynak seçin',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                    )),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildDynamicCategory(SourceSelectionController controller, SourceCategory category, bool isDark) {
+  Widget _buildDynamicCategory(SourceCategory category, bool isDark) {
     final color = _getCategoryColor(category.name);
     final icon = _getCategoryIcon(category.name);
 
@@ -282,7 +410,7 @@ class SourceSelectionView extends StatelessWidget {
             child: Wrap(
               spacing: 10,
               runSpacing: 10,
-              children: category.sources.map((source) => _buildSourceChip(controller, source.id, source.name, color, isDark)).toList(),
+              children: category.sources.map((source) => _buildSourceChip(source.name, source.name, color, isDark)).toList(),
             ),
           ),
         ],
@@ -290,7 +418,7 @@ class SourceSelectionView extends StatelessWidget {
     );
   }
 
-  Widget _buildStaticCategory(SourceSelectionController controller, NewsSourceCategory category, bool isDark) {
+  Widget _buildStaticCategory(NewsSourceCategory category, bool isDark) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
@@ -372,7 +500,7 @@ class SourceSelectionView extends StatelessWidget {
               spacing: 10,
               runSpacing: 10,
               children: (List<NewsSourceItem>.from(category.sources)..sort((a, b) => a.name.compareTo(b.name)))
-                  .map((source) => _buildSourceChip(controller, source.id, source.name, category.color, isDark))
+                  .map((source) => _buildSourceChip(source.name, source.name, category.color, isDark))
                   .toList(),
             ),
           ),
@@ -381,7 +509,7 @@ class SourceSelectionView extends StatelessWidget {
     );
   }
 
-  Widget _buildSourceChip(SourceSelectionController controller, String id, String name, Color color, bool isDark) {
+  Widget _buildSourceChip(String id, String name, Color color, bool isDark) {
     return Obx(() {
       final isSelected = controller.isSourceSelected(id);
       return GestureDetector(

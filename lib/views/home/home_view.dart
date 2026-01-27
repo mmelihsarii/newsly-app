@@ -5,11 +5,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../controllers/home_controller.dart';
 import '../../controllers/saved_controller.dart';
 import '../../controllers/search_controller.dart' as search;
+import '../../controllers/reading_settings_controller.dart';
 import '../../models/news_model.dart';
 import '../../models/featured_section_model.dart';
 import '../../services/notification_service.dart';
 import '../../utils/colors.dart';
 import '../../utils/date_helper.dart';
+import '../../utils/source_logos.dart';
 import '../../widgets/notification_bottom_sheet.dart';
 import '../../widgets/search_filter_sheet.dart';
 import '../../widgets/news_card.dart' show getCategoryColor;
@@ -36,61 +38,69 @@ class HomeView extends StatelessWidget {
           return _buildSearchResults(searchController);
         }
 
-        // Normal haber akışı
+        // Normal haber akışı - PERFORMANS OPTİMİZE
         return RefreshIndicator(
           onRefresh: () async => controller.refreshNews(),
           color: AppColors.primary,
-          child: SingleChildScrollView(
+          child: CustomScrollView(
             controller: controller.scrollController,
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            cacheExtent: 500, // Önceden render et
+            slivers: [
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-                // ===== SLIDER (PANEL'DEN - type: slider) =====
-                Obx(() {
-                  if (controller.isFeaturedLoading.value) {
-                    return const SizedBox(
+              // ===== SLIDER (PANEL'DEN - type: slider) =====
+              Obx(() {
+                if (controller.isFeaturedLoading.value) {
+                  return const SliverToBoxAdapter(
+                    child: SizedBox(
                       height: 220,
                       child: Center(
                         child: CircularProgressIndicator(
                           color: AppColors.primary,
                         ),
                       ),
-                    );
-                  }
+                    ),
+                  );
+                }
 
-                  if (controller.sliderSections.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
+                if (controller.sliderSections.isEmpty) {
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
+                }
 
-                  return Column(
+                return SliverToBoxAdapter(
+                  child: Column(
                     children: controller.sliderSections.map((section) {
                       return _buildFeaturedSlider(section);
                     }).toList(),
-                  );
-                }),
+                  ),
+                );
+              }),
 
-                const SizedBox(height: 20),
+              const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-                // ===== HABER LİSTESİ (PANEL'DEN - type: breaking_news vs.) =====
-                Obx(() {
-                  // İlk yükleme sırasında loading göster
-                  if (controller.isLoading.value || controller.isFeaturedLoading.value) {
-                    return const SizedBox(
+              // ===== HABER LİSTESİ - SliverList ile optimize =====
+              Obx(() {
+                // İlk yükleme sırasında loading göster
+                if (controller.isLoading.value || controller.isFeaturedLoading.value) {
+                  return const SliverToBoxAdapter(
+                    child: SizedBox(
                       height: 200,
                       child: Center(
                         child: CircularProgressIndicator(
                           color: AppColors.primary,
                         ),
                       ),
-                    );
-                  }
+                    ),
+                  );
+                }
 
-                  // Haberler yüklendi ama boş
-                  if (controller.newsSections.isEmpty && controller.rssNews.isEmpty) {
-                    return SizedBox(
+                // Haberler yüklendi ama boş
+                if (controller.newsSections.isEmpty && controller.rssNews.isEmpty) {
+                  return SliverToBoxAdapter(
+                    child: SizedBox(
                       height: 200,
                       child: Center(
                         child: Column(
@@ -114,20 +124,102 @@ class HomeView extends StatelessWidget {
                           ],
                         ),
                       ),
-                    );
-                  }
-
-                  return Column(
-                    children: controller.newsSections.map((section) {
-                      return _buildNewsSection(section);
-                    }).toList(),
+                    ),
                   );
-                }),
-              ],
-            ),
+                }
+
+                // Haber listesi - SliverList ile performanslı
+                return _buildOptimizedNewsList();
+              }),
+            ],
           ),
         );
       }),
+    );
+  }
+
+  /// PERFORMANS OPTİMİZE - SliverList ile haber listesi
+  Widget _buildOptimizedNewsList() {
+    final isDark = Get.isDarkMode;
+    final readingController = Get.find<ReadingSettingsController>();
+    
+    // Section başlığı ve haberler
+    final section = controller.newsSections.isNotEmpty ? controller.newsSections.first : null;
+    if (section == null || section.news.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+    
+    return SliverMainAxisGroup(
+      slivers: [
+        // Section Başlığı
+        if (section.title != null && section.title!.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                section.title!,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+            ),
+          ),
+        
+        // Haber Listesi - SliverList ile lazy loading
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          sliver: SliverList.builder(
+            itemCount: section.news.length + 1, // +1 for loading indicator
+            itemBuilder: (context, index) {
+              // Son item loading indicator
+              if (index == section.news.length) {
+                return Obx(() {
+                  if (controller.isLoadingMore.value) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    );
+                  }
+                  
+                  if (!controller.hasMoreNews.value) {
+                    return Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Center(
+                        child: Text(
+                          'Tüm haberler yüklendi',
+                          style: TextStyle(
+                            color: isDark ? Colors.white54 : Colors.grey,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  
+                  return const SizedBox(height: 60);
+                });
+              }
+              
+              final news = section.news[index];
+              return _OptimizedNewsListItem(
+                key: ValueKey('news_${news.id ?? index}'),
+                news: news,
+                isDark: isDark,
+                hideImages: readingController.hideImages.value,
+              );
+            },
+          ),
+        ),
+        
+        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+      ],
     );
   }
 
@@ -447,165 +539,172 @@ class HomeView extends StatelessWidget {
 
   // Arama sonuçları listesi (ortak widget)
   Widget _buildSearchResultsList(List<NewsModel> newsList) {
+    final readingController = Get.find<ReadingSettingsController>();
+    
     return Builder(
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
 
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: newsList.length,
-          itemBuilder: (context, index) {
-            final news = newsList[index];
-            return GestureDetector(
-              onTap: () => Get.to(() => NewsDetailPage(news: news)),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1A2F47) : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: isDark
-                          ? Colors.black.withOpacity(0.3)
-                          : Colors.black.withOpacity(0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Küçük Resim
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: news.image != null && news.image!.isNotEmpty
-                          ? Image.network(
-                              news.image!,
-                              width: 90,
-                              height: 75,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                width: 90,
-                                height: 75,
-                                color: isDark
-                                    ? const Color(0xFF132440)
-                                    : Colors.grey.shade200,
-                                child: Icon(
-                                  Icons.image,
-                                  color: isDark ? Colors.white38 : Colors.grey,
-                                  size: 24,
-                                ),
-                              ),
-                            )
-                          : Container(
-                              width: 90,
-                              height: 75,
-                              color: isDark
-                                  ? const Color(0xFF132440)
-                                  : Colors.grey.shade200,
-                              child: Icon(
-                                Icons.image,
-                                color: isDark ? Colors.white38 : Colors.grey,
-                                size: 24,
-                              ),
-                            ),
-                    ),
-                    const SizedBox(width: 10),
-                    // İçerik
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (news.categoryName != null)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? const Color(0xFF2A4F67)
-                                    : const Color(0xFF1E3A5F).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                news.categoryName!,
-                                style: TextStyle(
-                                  color: isDark
-                                      ? Colors.white70
-                                      : const Color(0xFF1E3A5F),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          const SizedBox(height: 6),
-                          Text(
-                            news.title ?? "",
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white : Colors.black87,
-                              height: 1.3,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Row(
-                            children: [
-                              if (news.sourceName != null &&
-                                  news.sourceName!.isNotEmpty) ...[
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: getCategoryColor(news.categoryName).withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    news.sourceName!,
-                                    style: TextStyle(
-                                      color: getCategoryColor(news.categoryName),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
+        return Obx(() {
+          final hideImages = readingController.hideImages.value;
+          
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: newsList.length,
+            itemBuilder: (context, index) {
+              final news = newsList[index];
+              return GestureDetector(
+                onTap: () => Get.to(() => NewsDetailPage(news: news)),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1A2F47) : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isDark
+                            ? Colors.black.withOpacity(0.3)
+                            : Colors.black.withOpacity(0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Küçük Resim - hideImages açıksa gösterme
+                      if (!hideImages)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: news.image != null && news.image!.isNotEmpty
+                              ? Image.network(
+                                  news.image!,
+                                  width: 90,
+                                  height: 75,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    width: 90,
+                                    height: 75,
+                                    color: isDark
+                                        ? const Color(0xFF132440)
+                                        : Colors.grey.shade200,
+                                    child: Icon(
+                                      Icons.image,
+                                      color: isDark ? Colors.white38 : Colors.grey,
+                                      size: 24,
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                )
+                              : Container(
+                                  width: 90,
+                                  height: 75,
+                                  color: isDark
+                                      ? const Color(0xFF132440)
+                                      : Colors.grey.shade200,
+                                  child: Icon(
+                                    Icons.image,
+                                    color: isDark ? Colors.white38 : Colors.grey,
+                                    size: 24,
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                              ],
-                              Flexible(
+                        ),
+                      if (!hideImages) const SizedBox(width: 10),
+                      // İçerik
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (news.categoryName != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(0xFF2A4F67)
+                                      : const Color(0xFF1E3A5F).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
                                 child: Text(
-                                  DateHelper.getTimeAgo(news.date),
+                                  news.categoryName!,
                                   style: TextStyle(
                                     color: isDark
-                                        ? Colors.white54
-                                        : Colors.grey.shade500,
+                                        ? Colors.white70
+                                        : const Color(0xFF1E3A5F),
                                     fontSize: 10,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
+                            const SizedBox(height: 6),
+                            Text(
+                              news.title ?? "",
+                              maxLines: hideImages ? 3 : 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white : Colors.black87,
+                                height: 1.3,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Row(
+                              children: [
+                                if (news.sourceName != null &&
+                                    news.sourceName!.isNotEmpty) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: getCategoryColor(news.categoryName).withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      news.sourceName!,
+                                      style: TextStyle(
+                                        color: getCategoryColor(news.categoryName),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                ],
+                                Flexible(
+                                  child: Text(
+                                    DateHelper.getTimeAgo(news.publishedAt ?? news.date),
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white54
+                                          : Colors.grey.shade500,
+                                      fontSize: 10,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
-        );
+              );
+            },
+          );
+        });
       },
     );
   }
@@ -801,6 +900,8 @@ class HomeView extends StatelessWidget {
 
     final pageController = controller.featuredSliderControllers[section.id!];
     if (pageController == null) return const SizedBox.shrink();
+    
+    final readingController = Get.find<ReadingSettingsController>();
 
     const gradient = LinearGradient(
       begin: Alignment.topCenter,
@@ -812,68 +913,198 @@ class HomeView extends StatelessWidget {
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Section Başlığı
-            if (section.title != null && section.title!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  section.title!,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
+        return Obx(() {
+          final hideImages = readingController.hideImages.value;
+          
+          // Görseller gizliyse slider yerine basit liste göster
+          if (hideImages) {
+            return _buildTextOnlySlider(section, isDark);
+          }
+          
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Section Başlığı
+              if (section.title != null && section.title!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    section.title!,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
                   ),
                 ),
+              SizedBox(
+                height: 220,
+                child: PageView.builder(
+                  controller: pageController,
+                  onPageChanged: (index) {
+                    controller.updateSliderIndex(section.id!, index);
+                    controller.update();
+                  },
+                  itemCount: section.news.length,
+                  itemBuilder: (context, index) {
+                    final news = section.news[index];
+                    return _buildSliderItem(news, gradient);
+                  },
+                ),
               ),
-            SizedBox(
-              height: 220,
-              child: PageView.builder(
-                controller: pageController,
-                onPageChanged: (index) {
-                  controller.updateSliderIndex(section.id!, index);
-                  controller.update();
-                },
-                itemCount: section.news.length,
-                itemBuilder: (context, index) {
-                  final news = section.news[index];
-                  return _buildSliderItem(news, gradient);
-                },
+              const SizedBox(height: 10),
+              // Slider Dots
+              GetBuilder<HomeController>(
+                builder: (_) {
+              final currentIndex =
+                  controller.featuredSliderIndices[section.id!] ?? 0;
+              final itemCount = section.news.length > 10
+                  ? 10
+                  : section.news.length;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(itemCount, (index) {
+                  final isActive = currentIndex == index;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: isActive ? 20 : 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: isActive ? AppColors.primary : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  );
+                }),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+            ],
+          );
+        });
+      },
+    );
+  }
+  
+  /// Görseller gizliyken slider yerine gösterilecek metin tabanlı liste
+  Widget _buildTextOnlySlider(FeaturedSectionModel section, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section Başlığı
+        if (section.title != null && section.title!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
+              section.title!,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
               ),
             ),
-            const SizedBox(height: 10),
-            // Slider Dots
-            GetBuilder<HomeController>(
-              builder: (_) {
-            final currentIndex =
-                controller.featuredSliderIndices[section.id!] ?? 0;
-            final itemCount = section.news.length > 10
-                ? 10
-                : section.news.length;
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(itemCount, (index) {
-                final isActive = currentIndex == index;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: isActive ? 20 : 6,
-                  height: 6,
+          ),
+        // Yatay kaydırılabilir haber kartları
+        SizedBox(
+          height: 140,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: section.news.length > 10 ? 10 : section.news.length,
+            itemBuilder: (context, index) {
+              final news = section.news[index];
+              return GestureDetector(
+                onTap: () => Get.to(() => NewsDetailPage(news: news)),
+                child: Container(
+                  width: 280,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isActive ? AppColors.primary : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(3),
+                    color: isDark ? const Color(0xFF1A2F47) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF2A4F67) : Colors.grey.shade200,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isDark
+                            ? Colors.black.withOpacity(0.2)
+                            : Colors.black.withOpacity(0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                );
-              }),
-            );
-          },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Kategori ve kaydet butonu
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          if (news.categoryName != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                news.categoryName!,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          Obx(() {
+                            final isSaved = savedController.isSaved(news);
+                            return GestureDetector(
+                              onTap: () => savedController.toggleSave(news),
+                              child: Icon(
+                                isSaved ? Icons.bookmark : Icons.bookmark_border,
+                                color: isSaved ? AppColors.primary : (isDark ? Colors.white54 : Colors.grey),
+                                size: 20,
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Başlık
+                      Expanded(
+                        child: Text(
+                          news.title ?? '',
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      // Tarih
+                      Text(
+                        DateHelper.getTimeAgo(news.publishedAt ?? news.date),
+                        style: TextStyle(
+                          color: isDark ? Colors.white54 : Colors.grey,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
         ),
         const SizedBox(height: 16),
-          ],
-        );
-      },
+      ],
     );
   }
 
@@ -898,39 +1129,8 @@ class HomeView extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Resim
-              if (news.image != null && news.image!.isNotEmpty)
-                CachedNetworkImage(
-                  imageUrl: news.image!,
-                  fit: BoxFit.cover,
-                  memCacheWidth: 800,
-                  placeholder: (context, url) => Container(
-                    color: const Color(0xFF1E3A5F),
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        color: Colors.white54,
-                        strokeWidth: 2,
-                      ),
-                    ),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    color: const Color(0xFF1E3A5F),
-                    child: const Icon(
-                      Icons.image,
-                      color: Colors.white54,
-                      size: 50,
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  color: const Color(0xFF1E3A5F),
-                  child: const Icon(
-                    Icons.image,
-                    color: Colors.white54,
-                    size: 50,
-                  ),
-                ),
+              // Resim veya Fallback
+              _buildSliderImage(news),
               // Gradient
               DecoratedBox(decoration: BoxDecoration(gradient: gradient)),
               // Kategori (sol üst)
@@ -1000,7 +1200,7 @@ class HomeView extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      DateHelper.getTimeAgo(news.date),
+                      DateHelper.getTimeAgo(news.publishedAt ?? news.date),
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.7),
                         fontSize: 11,
@@ -1098,6 +1298,360 @@ class HomeView extends StatelessWidget {
 
   // Haber Liste Item
   Widget _buildNewsListItem(NewsModel news, bool isDark) {
+    final readingController = Get.find<ReadingSettingsController>();
+    
+    return GestureDetector(
+      onTap: () => Get.to(() => NewsDetailPage(news: news)),
+      child: Obx(() {
+        final hideImages = readingController.hideImages.value;
+        
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A2F47) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withOpacity(0.3)
+                    : Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Resim veya Fallback - hideImages açıksa gösterme
+              if (!hideImages)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: _buildListItemImage(news, isDark),
+                ),
+              if (!hideImages) const SizedBox(width: 12),
+              // İçerik
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Kaynak adı - kategori renkli
+                    if (news.sourceName != null && news.sourceName!.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        margin: const EdgeInsets.only(bottom: 6),
+                        decoration: BoxDecoration(
+                          color: getCategoryColor(news.categoryName).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          news.sourceName!,
+                          style: TextStyle(
+                            color: getCategoryColor(news.categoryName),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    // Başlık
+                    Text(
+                      news.title ?? "",
+                      maxLines: hideImages ? 3 : 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // Tarih
+                    Text(
+                      DateHelper.getTimeAgo(news.publishedAt ?? news.date),
+                      style: TextStyle(
+                        color: isDark ? Colors.white54 : Colors.grey.shade500,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
+  /// Slider için görsel widget'ı
+  Widget _buildSliderImage(NewsModel news) {
+    final hasImage = news.image != null && news.image!.isNotEmpty;
+    
+    if (hasImage) {
+      return CachedNetworkImage(
+        imageUrl: news.image!,
+        fit: BoxFit.cover,
+        alignment: Alignment.center,
+        width: double.infinity,
+        height: double.infinity,
+        memCacheWidth: 800,
+        memCacheHeight: 450,
+        fadeInDuration: const Duration(milliseconds: 200),
+        fadeOutDuration: const Duration(milliseconds: 200),
+        placeholder: (context, url) => Container(
+          color: const Color(0xFF1E3A5F),
+        ),
+        errorWidget: (context, url, error) => _buildSliderFallback(news),
+      );
+    } else {
+      return _buildSliderFallback(news);
+    }
+  }
+
+  /// Slider için fallback görsel (logo veya placeholder)
+  Widget _buildSliderFallback(NewsModel news) {
+    final logoUrls = SourceLogos.getLogoUrlVariants(news.sourceName);
+    final categoryColor = getCategoryColor(news.categoryName);
+    
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            categoryColor.withOpacity(0.9),
+            categoryColor.withOpacity(0.5),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Container(
+          width: 90,
+          height: 90,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 8,
+              ),
+            ],
+          ),
+          child: _buildLogoWithFallbacks(logoUrls, news, 66),
+        ),
+      ),
+    );
+  }
+  
+  /// Birden fazla URL deneyen logo widget'ı
+  Widget _buildLogoWithFallbacks(List<String> urls, NewsModel news, double size) {
+    if (urls.isEmpty) {
+      return _buildSourceInitialWidget(news, size);
+    }
+    
+    return CachedNetworkImage(
+      imageUrl: urls[0],
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
+      imageBuilder: (context, imageProvider) => Image(
+        image: imageProvider,
+        fit: BoxFit.contain,
+      ),
+      placeholder: (context, url) => const Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+      errorWidget: (context, url, error) {
+        if (urls.length > 1) {
+          return _buildLogoWithFallbacks(urls.sublist(1), news, size);
+        }
+        return Center(
+          child: Icon(
+            Icons.newspaper,
+            size: size * 0.5,
+            color: getCategoryColor(news.categoryName),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Liste item için görsel widget'ı
+  Widget _buildListItemImage(NewsModel news, bool isDark) {
+    final hasImage = news.image != null && news.image!.isNotEmpty;
+    
+    if (hasImage) {
+      return SizedBox(
+        width: 100,
+        height: 85,
+        child: CachedNetworkImage(
+          imageUrl: news.image!,
+          width: 100,
+          height: 85,
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+          memCacheWidth: 200,
+          imageBuilder: (context, imageProvider) => Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              image: DecorationImage(
+                image: imageProvider,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          placeholder: (context, url) => Container(
+            width: 100,
+            height: 85,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF132440) : Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+          errorWidget: (context, url, error) => _buildListItemFallback(news, isDark),
+        ),
+      );
+    } else {
+      return _buildListItemFallback(news, isDark);
+    }
+  }
+
+  /// Liste item için fallback görsel
+  Widget _buildListItemFallback(NewsModel news, bool isDark) {
+    final logoUrls = SourceLogos.getLogoUrlVariants(news.sourceName);
+    final categoryColor = getCategoryColor(news.categoryName);
+    
+    return Container(
+      width: 100,
+      height: 85,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            categoryColor.withOpacity(0.3),
+            categoryColor.withOpacity(0.1),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Container(
+          width: 50,
+          height: 50,
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+              ),
+            ],
+          ),
+          child: _buildLogoWithFallbacks(logoUrls, news, 38),
+        ),
+      ),
+    );
+  }
+
+  /// Firebase Storage'dan kaynak logosu URL'si oluştur
+  String _getSourceLogoUrl(String? sourceName) {
+    if (sourceName == null || sourceName.isEmpty) {
+      return 'https://firebasestorage.googleapis.com/v0/b/newsly-70ef9.firebasestorage.app/o/source_logos%2Fdefault.png?alt=media';
+    }
+    
+    // Normalize: Halk TV -> halk_tv
+    String normalized = sourceName
+        .toLowerCase()
+        .replaceAll('ı', 'i')
+        .replaceAll('İ', 'i')
+        .replaceAll('ğ', 'g')
+        .replaceAll('Ğ', 'g')
+        .replaceAll('ü', 'u')
+        .replaceAll('Ü', 'u')
+        .replaceAll('ş', 's')
+        .replaceAll('Ş', 's')
+        .replaceAll('ö', 'o')
+        .replaceAll('Ö', 'o')
+        .replaceAll('ç', 'c')
+        .replaceAll('Ç', 'c')
+        .replaceAll(' ', '_')
+        .replaceAll('-', '_')
+        .replaceAll('.', '')
+        .replaceAll('&', '')
+        .replaceAll("'", '')
+        .trim();
+    
+    return 'https://firebasestorage.googleapis.com/v0/b/newsly-70ef9.firebasestorage.app/o/source_logos%2F$normalized.png?alt=media';
+  }
+
+  /// Kaynak logosu widget'ı - Firebase Storage'dan çeker
+  Widget _buildSourceInitialWidget(NewsModel news, double size) {
+    final logoUrl = _getSourceLogoUrl(news.sourceName);
+    final categoryColor = getCategoryColor(news.categoryName);
+    
+    return CachedNetworkImage(
+      imageUrl: logoUrl,
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
+      memCacheWidth: 100,
+      imageBuilder: (context, imageProvider) => Image(
+        image: imageProvider,
+        fit: BoxFit.contain,
+      ),
+      placeholder: (context, url) => const Center(
+        child: SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+      errorWidget: (context, url, error) => Center(
+        child: Icon(
+          Icons.newspaper,
+          size: size * 0.5,
+          color: categoryColor,
+        ),
+      ),
+    );
+  }
+}
+
+/// PERFORMANS OPTİMİZE - Ayrı StatelessWidget olarak haber item
+/// Bu sayede her item bağımsız olarak rebuild olur, tüm liste değil
+class _OptimizedNewsListItem extends StatelessWidget {
+  final NewsModel news;
+  final bool isDark;
+  final bool hideImages;
+
+  const _OptimizedNewsListItem({
+    super.key,
+    required this.news,
+    required this.isDark,
+    required this.hideImages,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => Get.to(() => NewsDetailPage(news: news)),
       child: Container(
@@ -1119,53 +1673,13 @@ class HomeView extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Resim
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: news.image != null && news.image!.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: news.image!,
-                      width: 100,
-                      height: 85,
-                      fit: BoxFit.cover,
-                      memCacheWidth: 200,
-                      placeholder: (context, url) => Container(
-                        width: 100,
-                        height: 85,
-                        color: isDark
-                            ? const Color(0xFF132440)
-                            : Colors.grey.shade200,
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        width: 100,
-                        height: 85,
-                        color: isDark
-                            ? const Color(0xFF132440)
-                            : Colors.grey.shade200,
-                        child: Icon(
-                          Icons.image,
-                          color: isDark ? Colors.white38 : Colors.grey,
-                          size: 24,
-                        ),
-                      ),
-                    )
-                  : Container(
-                      width: 100,
-                      height: 85,
-                      color: isDark
-                          ? const Color(0xFF132440)
-                          : Colors.grey.shade200,
-                      child: Icon(
-                        Icons.image,
-                        color: isDark ? Colors.white38 : Colors.grey,
-                        size: 24,
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 12),
+            // Resim veya Fallback - hideImages açıksa gösterme
+            if (!hideImages)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _buildOptimizedImage(),
+              ),
+            if (!hideImages) const SizedBox(width: 12),
             // İçerik
             Expanded(
               child: Column(
@@ -1197,7 +1711,7 @@ class HomeView extends StatelessWidget {
                   // Başlık
                   Text(
                     news.title ?? "",
-                    maxLines: 2,
+                    maxLines: hideImages ? 3 : 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 14,
@@ -1209,7 +1723,7 @@ class HomeView extends StatelessWidget {
                   const SizedBox(height: 6),
                   // Tarih
                   Text(
-                    DateHelper.getTimeAgo(news.date),
+                    DateHelper.getTimeAgo(news.publishedAt ?? news.date),
                     style: TextStyle(
                       color: isDark ? Colors.white54 : Colors.grey.shade500,
                       fontSize: 11,
@@ -1219,6 +1733,76 @@ class HomeView extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Optimize edilmiş görsel widget'ı
+  Widget _buildOptimizedImage() {
+    final hasImage = news.image != null && news.image!.isNotEmpty;
+    
+    if (hasImage) {
+      return SizedBox(
+        width: 100,
+        height: 85,
+        child: CachedNetworkImage(
+          imageUrl: news.image!,
+          width: 100,
+          height: 85,
+          fit: BoxFit.cover,
+          memCacheWidth: 200, // Bellek optimizasyonu
+          memCacheHeight: 170,
+          fadeInDuration: const Duration(milliseconds: 200),
+          fadeOutDuration: const Duration(milliseconds: 200),
+          imageBuilder: (context, imageProvider) => Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              image: DecorationImage(
+                image: imageProvider,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          placeholder: (context, url) => Container(
+            width: 100,
+            height: 85,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF132440) : Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          errorWidget: (context, url, error) => _buildFallbackImage(),
+        ),
+      );
+    } else {
+      return _buildFallbackImage();
+    }
+  }
+
+  /// Fallback görsel
+  Widget _buildFallbackImage() {
+    final categoryColor = getCategoryColor(news.categoryName);
+    
+    return Container(
+      width: 100,
+      height: 85,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            categoryColor.withOpacity(0.3),
+            categoryColor.withOpacity(0.1),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.newspaper,
+          size: 32,
+          color: categoryColor.withOpacity(0.7),
         ),
       ),
     );

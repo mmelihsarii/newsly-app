@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'user_service.dart';
 import 'news_service.dart';
 import '../views/login_view.dart';
+import '../controllers/source_selection_controller.dart';
+import '../controllers/follow_controller.dart';
+import '../controllers/saved_controller.dart';
 
 class AuthService extends GetxController {
   static AuthService get to => Get.find<AuthService>();
@@ -88,7 +92,16 @@ class AuthService extends GetxController {
       _showErrorSnackbar(_getErrorMessage(e.code));
       return null;
     } catch (e) {
-      _showErrorSnackbar('Bir hata oluştu: $e');
+      // Google Sign-In API hatalarını yakala
+      final errorStr = e.toString();
+      if (errorStr.contains('ApiException: 10') || errorStr.contains('sign_in_failed')) {
+        _showErrorSnackbar('Google giriş yapılandırması eksik. Lütfen e-posta ile giriş yapın veya misafir olarak devam edin.');
+      } else if (errorStr.contains('network_error') || errorStr.contains('ApiException: 7')) {
+        _showErrorSnackbar('İnternet bağlantınızı kontrol edin');
+      } else {
+        _showErrorSnackbar('Google ile giriş başarısız oldu. Lütfen tekrar deneyin.');
+      }
+      print('❌ Google Sign-In Error: $e');
       return null;
     } finally {
       isLoading.value = false;
@@ -147,9 +160,61 @@ class AuthService extends GetxController {
     }
   }
 
-  // ==================== APPLE SIGN IN (Yakında) ====================
-  Future<void> signInWithApple() async {
-    _showInfoSnackbar('Apple ile giriş yakında eklenecek!');
+  // ==================== APPLE SIGN IN ====================
+  Future<UserCredential?> signInWithApple() async {
+    try {
+      isLoading.value = true;
+      
+      // Önceki cache'i temizle
+      Get.find<NewsService>().clearSelectedSourcesCache();
+
+      // Apple Sign In akışını başlat
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      // Firebase credential oluştur
+      final oauthCredential = OAuthProvider('apple.com').credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      // Firebase'e giriş yap
+      final userCredential = await _auth.signInWithCredential(oauthCredential);
+
+      // Apple ilk girişte isim veriyor, sonraki girişlerde vermiyor
+      // İsim varsa güncelle
+      if (appleCredential.givenName != null || appleCredential.familyName != null) {
+        final displayName = '${appleCredential.givenName ?? ''} ${appleCredential.familyName ?? ''}'.trim();
+        if (displayName.isNotEmpty) {
+          await userCredential.user?.updateDisplayName(displayName);
+        }
+      }
+
+      // Firestore'da kullanıcı profili oluştur
+      await _createUserProfileIfNeeded(userCredential);
+
+      _showSuccessSnackbar('Apple ile giriş başarılı!');
+      return userCredential;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        // Kullanıcı iptal etti
+        return null;
+      }
+      _showErrorSnackbar('Apple giriş hatası: ${e.message}');
+      return null;
+    } on FirebaseAuthException catch (e) {
+      _showErrorSnackbar(_getErrorMessage(e.code));
+      return null;
+    } catch (e) {
+      _showErrorSnackbar('Apple ile giriş hatası: $e');
+      return null;
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   // ==================== SIGN OUT ====================
@@ -168,8 +233,12 @@ class AuthService extends GetxController {
       await prefs.setBool('isLoggedIn', false);
       await prefs.remove('lastLoginTime');
       
-      // NewsService cache'ini temizle
-      Get.find<NewsService>().clearSelectedSourcesCache();
+      // GetStorage'daki tüm verileri temizle
+      final storage = GetStorage();
+      await storage.erase();
+      
+      // Tüm controller'ları sıfırla
+      _resetAllControllers();
 
       _showSuccessSnackbar('Çıkış yapıldı');
     } catch (e) {
@@ -230,19 +299,76 @@ class AuthService extends GetxController {
       if (confirmed != true) return;
 
       isLoading.value = true;
+      
+      // Loading dialog göster
+      Get.dialog(
+        PopScope(
+          canPop: false,
+          child: const Center(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.red),
+                    SizedBox(height: 16),
+                    Text('Hesap siliniyor...', style: TextStyle(fontSize: 16)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        barrierDismissible: false,
+      );
 
-      // UserService üzerinden hesabı sil
+      // UserService üzerinden hesabı sil - timeout ile
       final userService = Get.find<UserService>();
-      final success = await userService.deleteAccount();
+      bool success = false;
+      
+      try {
+        success = await userService.deleteAccount().timeout(
+          const Duration(seconds: 45),
+          onTimeout: () {
+            print('⚠️ Hesap silme timeout - devam ediliyor');
+            return true; // Timeout olsa bile devam et
+          },
+        );
+      } catch (e) {
+        print('❌ deleteAccount hatası: $e');
+        success = true; // Hata olsa bile çıkış yap
+      }
+      
+      // Loading dialog'u kapat
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
 
       if (success) {
         // GetStorage'daki tüm verileri temizle
         final storage = GetStorage();
         await storage.erase();
+        
+        // SharedPreferences'ı da temizle
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.clear();
+        
+        // Tüm controller'ları sıfırla
+        _resetAllControllers();
 
         // Çıkış yap
-        await _googleSignIn.signOut();
-        await _auth.signOut();
+        try {
+          await _googleSignIn.signOut();
+        } catch (e) {
+          print('Google signOut hatası: $e');
+        }
+        
+        try {
+          await _auth.signOut();
+        } catch (e) {
+          print('Firebase signOut hatası: $e');
+        }
 
         _showSuccessSnackbar('Hesabınız başarıyla silindi');
 
@@ -252,6 +378,10 @@ class AuthService extends GetxController {
         _showErrorSnackbar('Hesap silinirken bir hata oluştu');
       }
     } catch (e) {
+      // Loading dialog'u kapat
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
       _showErrorSnackbar('Hesap silinirken hata: $e');
     } finally {
       isLoading.value = false;
@@ -328,5 +458,49 @@ class AuthService extends GetxController {
       colorText: Colors.white,
       duration: const Duration(seconds: 2),
     );
+  }
+  
+  /// Tüm controller'ları sıfırla (hesap silme/çıkış için)
+  void _resetAllControllers() {
+    try {
+      // SourceSelectionController sıfırla
+      if (Get.isRegistered<SourceSelectionController>()) {
+        final controller = Get.find<SourceSelectionController>();
+        controller.clearAllData();
+      }
+    } catch (e) {
+      print('⚠️ SourceSelectionController sıfırlama hatası: $e');
+    }
+    
+    try {
+      // FollowController sıfırla
+      if (Get.isRegistered<FollowController>()) {
+        final controller = Get.find<FollowController>();
+        controller.selectedSources.clear();
+        controller.allSources.clear();
+      }
+    } catch (e) {
+      print('⚠️ FollowController sıfırlama hatası: $e');
+    }
+    
+    try {
+      // NewsService cache temizle
+      if (Get.isRegistered<NewsService>()) {
+        Get.find<NewsService>().clearSelectedSourcesCache();
+      }
+    } catch (e) {
+      print('⚠️ NewsService sıfırlama hatası: $e');
+    }
+    
+    try {
+      // SavedController sıfırla
+      if (Get.isRegistered<SavedController>()) {
+        Get.find<SavedController>().clearAll();
+      }
+    } catch (e) {
+      print('⚠️ SavedController sıfırlama hatası: $e');
+    }
+    
+    print('✅ Tüm controller\'lar sıfırlandı');
   }
 }

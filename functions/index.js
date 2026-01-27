@@ -157,11 +157,22 @@ exports.checkBreakingNews = functions.pubsub
             defaultVibrateTimings: true,
           },
         },
+        // iOS APNS - Tam yapılandırma
         apns: {
+          headers: {
+            'apns-priority': '10',
+            'apns-push-type': 'alert',
+          },
           payload: {
             aps: {
+              alert: {
+                title: '🔴 Son Dakika',
+                body: breakingNews.title,
+              },
               sound: 'default',
               badge: 1,
+              'content-available': 1,
+              'mutable-content': 1,
             },
           },
         },

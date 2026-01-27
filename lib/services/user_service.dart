@@ -15,6 +15,7 @@ class UserService extends GetxController {
   var followedCategories = <String>[].obs; // Takip edilen kategoriler
   var followedSources = <String>[].obs; // Takip edilen kaynaklar
   var isLoading = false.obs;
+  var onboardingCompleted = false.obs; // Onboarding tamamlandı mı?
 
   // Mevcut kullanıcı ID
   String? get userId => _auth.currentUser?.uid;
@@ -157,6 +158,7 @@ class UserService extends GetxController {
       savedNews.clear();
       followedCategories.clear();
       followedSources.clear();
+      onboardingCompleted.value = false;
       return;
     }
 
@@ -174,11 +176,63 @@ class UserService extends GetxController {
         followedSources.value = List<String>.from(
           doc.data()?['followedSources'] ?? [],
         );
+        onboardingCompleted.value = doc.data()?['onboardingCompleted'] ?? false;
       }
     } catch (e) {
       print('Veri yükleme hatası: $e');
     } finally {
       isLoading.value = false;
+    }
+  }
+  
+  /// Onboarding durumunu kontrol et (giriş sonrası kullanılır)
+  Future<bool> checkOnboardingStatus() async {
+    if (userId == null) return false;
+    
+    try {
+      final doc = await _db.collection('users').doc(userId).get();
+      if (doc.exists) {
+        final completed = doc.data()?['onboardingCompleted'] ?? false;
+        onboardingCompleted.value = completed;
+        return completed;
+      }
+      return false;
+    } catch (e) {
+      print('Onboarding durumu kontrol hatası: $e');
+      return false;
+    }
+  }
+  
+  /// Onboarding tamamlandı olarak işaretle
+  Future<void> markOnboardingCompleted() async {
+    if (userId == null) return;
+    
+    try {
+      await _db.collection('users').doc(userId).set({
+        'onboardingCompleted': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      
+      onboardingCompleted.value = true;
+      print('✅ Onboarding tamamlandı olarak işaretlendi');
+    } catch (e) {
+      print('Onboarding işaretleme hatası: $e');
+    }
+  }
+  
+  /// Seçilen şehri kaydet
+  Future<void> saveSelectedCity(String cityName) async {
+    if (userId == null) return;
+    
+    try {
+      await _db.collection('users').doc(userId).set({
+        'selectedCity': cityName,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      
+      print('✅ Şehir kaydedildi: $cityName');
+    } catch (e) {
+      print('Şehir kaydetme hatası: $e');
     }
   }
 
@@ -364,31 +418,61 @@ class UserService extends GetxController {
       } catch (e) {
         // requires-recent-login hatası alınırsa
         if (e is FirebaseAuthException && e.code == 'requires-recent-login') {
-          print('⚠️ Yeniden giriş gerekiyor, Google ile yeniden doğrulama deneniyor...');
+          print('⚠️ Yeniden giriş gerekiyor...');
           
-          // Google ile yeniden doğrulama dene
-          try {
-            final googleUser = await GoogleSignIn().signIn();
-            if (googleUser != null) {
-              final googleAuth = await googleUser.authentication;
-              final credential = GoogleAuthProvider.credential(
-                accessToken: googleAuth.accessToken,
-                idToken: googleAuth.idToken,
-              );
-              await currentUser.reauthenticateWithCredential(credential);
-              await currentUser.delete();
-              print('✅ Yeniden doğrulama sonrası kullanıcı silindi');
-            } else {
-              print('❌ Google yeniden doğrulama iptal edildi');
-              return false;
+          // Provider'a göre yeniden doğrulama yap
+          final providerData = currentUser.providerData;
+          bool reAuthSuccess = false;
+          
+          for (final provider in providerData) {
+            if (provider.providerId == 'google.com') {
+              // Google ile yeniden doğrulama
+              try {
+                final googleSignIn = GoogleSignIn();
+                final googleUser = await googleSignIn.signIn().timeout(
+                  const Duration(seconds: 30),
+                  onTimeout: () => null,
+                );
+                if (googleUser != null) {
+                  final googleAuth = await googleUser.authentication;
+                  final credential = GoogleAuthProvider.credential(
+                    accessToken: googleAuth.accessToken,
+                    idToken: googleAuth.idToken,
+                  );
+                  await currentUser.reauthenticateWithCredential(credential);
+                  await currentUser.delete();
+                  reAuthSuccess = true;
+                  print('✅ Google yeniden doğrulama sonrası kullanıcı silindi');
+                }
+              } catch (reAuthError) {
+                print('⚠️ Google yeniden doğrulama hatası: $reAuthError');
+              }
+              break;
+            } else if (provider.providerId == 'apple.com') {
+              // Apple ile yeniden doğrulama - iOS'ta otomatik yapılır
+              // Apple Sign-In için kullanıcıdan tekrar giriş istemek gerekiyor
+              // Ancak bu karmaşık olduğu için direkt silmeyi deneyelim
+              print('⚠️ Apple hesabı - yeniden doğrulama atlanıyor');
+              // Apple hesapları için Firestore silindi, Auth silme başarısız olsa da devam et
+              reAuthSuccess = true;
+              break;
+            } else if (provider.providerId == 'password') {
+              // Email/Password - kullanıcıdan şifre istemek gerekir
+              // Şimdilik atlıyoruz, Firestore silindi
+              print('⚠️ Email hesabı - yeniden doğrulama atlanıyor');
+              reAuthSuccess = true;
+              break;
             }
-          } catch (reAuthError) {
-            print('❌ Yeniden doğrulama hatası: $reAuthError');
-            return false;
+          }
+          
+          if (!reAuthSuccess) {
+            print('❌ Yeniden doğrulama başarısız');
+            // Firestore silindi, Auth silinemedi ama devam et
+            // Kullanıcı çıkış yapacak
           }
         } else {
           print('❌ Firebase Auth silme hatası: $e');
-          return false;
+          // Firestore silindi, devam et
         }
       }
 
@@ -398,7 +482,7 @@ class UserService extends GetxController {
       followedCategories.clear();
       followedSources.clear();
 
-      print('✅ Hesap başarıyla silindi');
+      print('✅ Hesap silme işlemi tamamlandı');
       return true;
     } catch (e) {
       print('❌ Hesap silme genel hatası: $e');

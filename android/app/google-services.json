@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "1025516160796",
+    "firebase_url": "https://newsly-70ef9-default-rtdb.europe-west1.firebasedatabase.app",
     "project_id": "newsly-70ef9",
     "storage_bucket": "newsly-70ef9.firebasestorage.app"
   },
@@ -61,11 +62,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "1025516160796-qvdjog3ae37hpsvurd1jr1lvn6stjgld.apps.googleusercontent.com",
+          "client_id": "1025516160796-ciel9jrkn11g3cpo39s9f3mvgqkcamf9.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.newsly.haber",
-            "certificate_hash": "7d5be675bf8dd3fc49ed081913c8a546420c8c44"
+            "certificate_hash": "db7ed0901b1b3d3f667b85062bd44ef7e0738f00"
           }
         },
         {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
 
 import 'views/splash_view.dart';
@@ -31,6 +32,9 @@ void main() async {
   // Firebase başlat (Auth ve Firestore için gerekli)
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  // Türkçe tarih formatı için locale verilerini başlat
+  await initializeDateFormatting('tr_TR', null);
+
   // NOT: FCM background handler KALDIRILDI - Otomatik bildirimler devre dışı
 
   await GetStorage.init();
@@ -50,9 +54,10 @@ void main() async {
   Get.lazyPut(() => LocalController());
   Get.put(FollowController());
   Get.put(search.NewsSearchController(), permanent: true);
+  Get.put(NotificationService(), permanent: true);
 
-  // Notification Service Başlat (artık sadece boş bir servis)
-  NotificationService().initialize(navigatorKey);
+  // Notification Service Başlat
+  Get.find<NotificationService>().initialize(navigatorKey);
 
   runApp(const NewslyApp());
 }
@@ -72,6 +77,15 @@ class NewslyApp extends StatelessWidget {
       darkTheme: themeController.darkTheme,
       themeMode: themeController.isDarkMode.value ? ThemeMode.dark : ThemeMode.light,
       navigatorObservers: [AnalyticsService().observer],
+      // Sistem yazı boyutu ayarlarını ignore et - sabit boyut
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.noScaling, // Yazı boyutunu sabit tut
+          ),
+          child: child!,
+        );
+      },
       home: const SplashView(),
     ));
   }

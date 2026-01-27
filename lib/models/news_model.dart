@@ -13,19 +13,73 @@ class NewsModel {
 
   NewsModel({
     this.id,
-    this.title,
+    String? title,
     this.image,
     this.date,
     this.categoryName,
-    this.description,
+    String? description,
     this.type,
-    this.contentValue,
+    String? contentValue,
     this.sourceUrl,
     this.sourceName,
     this.publishedAt,
-  });
+  }) : title = _fixTurkishText(title),
+       description = _fixTurkishText(description),
+       contentValue = _fixTurkishText(contentValue);
 
-  // --- 1. DÜZELTME: fromMap GÜÇLENDİRİLDİ ---
+  /// Türkçe metin düzeltme - TÜM encoding sorunlarını çöz
+  static String? _fixTurkishText(String? text) {
+    if (text == null || text.isEmpty) return text;
+    
+    String fixed = text;
+    
+    // UTF-8 double encoding düzeltmeleri
+    final fixes = {
+      'Ä±': 'ı', 'Ä°': 'İ', 'ÄŸ': 'ğ', 'Ä': 'Ğ',
+      'Ã¼': 'ü', 'Ãœ': 'Ü', 'ÅŸ': 'ş', 'Å': 'Ş',
+      'Ã¶': 'ö', 'Ã–': 'Ö', 'Ã§': 'ç', 'Ã‡': 'Ç',
+      'Ã¢': 'â', 'Ã®': 'î', 'Ã»': 'û',
+      'â€™': "'", 'â€œ': '"', 'â€': '"',
+      'â€"': '–', 'â€"': '—', 'â€¦': '...',
+      'Â°': '°', 'Â»': '»', 'Â«': '«', 'Â': '',
+      // Windows-1254 fixes
+      'Ý': 'İ', 'ý': 'ı', 'Þ': 'Ş', 'þ': 'ş', 'Ð': 'Ğ', 'ð': 'ğ',
+      // HTML entities
+      '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"',
+      '&apos;': "'", '&#39;': "'", '&nbsp;': ' ',
+      '&#305;': 'ı', '&#304;': 'İ', '&#287;': 'ğ', '&#286;': 'Ğ',
+      '&#252;': 'ü', '&#220;': 'Ü', '&#351;': 'ş', '&#350;': 'Ş',
+      '&#246;': 'ö', '&#214;': 'Ö', '&#231;': 'ç', '&#199;': 'Ç',
+    };
+    
+    fixes.forEach((wrong, correct) {
+      fixed = fixed.replaceAll(wrong, correct);
+    });
+    
+    // Numeric HTML entities
+    fixed = fixed.replaceAllMapped(
+      RegExp(r'&#(\d+);'),
+      (match) {
+        try {
+          return String.fromCharCode(int.parse(match.group(1)!));
+        } catch (_) {
+          return match.group(0)!;
+        }
+      },
+    );
+    
+    // CDATA temizle
+    fixed = fixed.replaceAll(RegExp(r'<!\[CDATA\['), '');
+    fixed = fixed.replaceAll(RegExp(r'\]\]>'), '');
+    
+    // Replacement character temizle
+    fixed = fixed.replaceAll('�', '');
+    fixed = fixed.replaceAll('\uFFFD', '');
+    
+    return fixed.trim();
+  }
+
+  // --- 1. DÜZELTME: fromMap GÜÇLENDİRİLDİ + Encoding Fix ---
   // Firebase veya veritabanından Map olarak gelirse tüm verileri almalı
   factory NewsModel.fromMap(Map<dynamic, dynamic> map) {
     DateTime? parsedDate;
@@ -37,14 +91,14 @@ class NewsModel {
     
     return NewsModel(
       id: map['id'].toString(),
-      title: map['title'] ?? '',
-      description: map['description'] ?? '',
+      title: _fixTurkishText(map['title']?.toString()),
+      description: _fixTurkishText(map['description']?.toString()),
       image: map['image'] ?? '',
       date: map['date'] ?? '',
       // Eksik olanları ekledik:
       categoryName: map['category_name'] ?? map['categoryName'] ?? '',
       type: map['content_type'] ?? map['type'] ?? 'standard_post',
-      contentValue: map['content_value'] ?? map['video_url'] ?? '',
+      contentValue: _fixTurkishText(map['content_value']?.toString() ?? map['video_url']?.toString()),
       sourceUrl: map['source_url'] ?? map['sourceUrl'] ?? '',
       sourceName: map['source_name'] ?? map['sourceName'] ?? '',
       publishedAt: parsedDate,
@@ -112,13 +166,13 @@ class NewsModel {
 
     return NewsModel(
       id: json['id'].toString(),
-      title: json['title'],
+      title: _fixTurkishText(json['title']?.toString()),
       image: imageUrl,
       date: json['date'],
       categoryName: categoryNameValue,
-      description: json['description'],
+      description: _fixTurkishText(json['description']?.toString()),
       type: json['content_type'] ?? json['type'],
-      contentValue: json['content_value'] ?? json['contentValue'],
+      contentValue: _fixTurkishText(json['content_value']?.toString() ?? json['contentValue']?.toString()),
       sourceUrl: json['sourceUrl'] ?? json['other_url'],
       sourceName: sourceNameValue,
       publishedAt: parsedDate,
@@ -145,7 +199,7 @@ class NewsModel {
   // Cache için JSON dönüşümü (toStorageJson ile aynı)
   Map<String, dynamic> toJson() => toStorageJson();
 
-  // --- 3. DÜZELTME: Storage OKUMA (sourceName Eklendi) ---
+  // --- 3. DÜZELTME: Storage OKUMA (sourceName Eklendi + Encoding Fix) ---
   factory NewsModel.fromStorageJson(Map<String, dynamic> json) {
     DateTime? parsedDate;
     if (json['publishedAt'] != null) {
@@ -154,13 +208,13 @@ class NewsModel {
     
     return NewsModel(
       id: json['id'],
-      title: json['title'],
+      title: _fixTurkishText(json['title']),
       image: json['image'],
       date: json['date'],
       categoryName: json['categoryName'],
-      description: json['description'],
+      description: _fixTurkishText(json['description']),
       type: json['type'],
-      contentValue: json['contentValue'],
+      contentValue: _fixTurkishText(json['contentValue']),
       sourceUrl: json['sourceUrl'],
       sourceName: json['sourceName'],
       publishedAt: parsedDate,

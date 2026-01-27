@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
+import '../services/user_service.dart';
 import 'city_selection_view.dart';
 import 'dashboard_view.dart';
 import 'email_login_view.dart';
@@ -25,12 +26,16 @@ class LoginView extends StatelessWidget {
     final result = await _authService.signInWithGoogle();
     if (result != null) {
       await _markAsLoggedIn();
-      Get.offAll(() => const CitySelectionView());
+      await _navigateAfterLogin();
     }
   }
 
-  void _signInWithApple() {
-    _authService.signInWithApple();
+  Future<void> _signInWithApple() async {
+    final result = await _authService.signInWithApple();
+    if (result != null) {
+      await _markAsLoggedIn();
+      await _navigateAfterLogin();
+    }
   }
 
   void _signUp() {
@@ -46,6 +51,20 @@ class LoginView extends StatelessWidget {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', true);
     await prefs.setInt('lastLoginTime', DateTime.now().millisecondsSinceEpoch);
+  }
+  
+  /// Giriş sonrası onboarding durumuna göre yönlendir
+  Future<void> _navigateAfterLogin() async {
+    final userService = Get.find<UserService>();
+    final onboardingCompleted = await userService.checkOnboardingStatus();
+    
+    if (onboardingCompleted) {
+      // Onboarding tamamlanmış, direkt anasayfaya git
+      Get.offAll(() => DashboardView());
+    } else {
+      // Onboarding tamamlanmamış, şehir seçimine git
+      Get.offAll(() => const CitySelectionView());
+    }
   }
 
   @override

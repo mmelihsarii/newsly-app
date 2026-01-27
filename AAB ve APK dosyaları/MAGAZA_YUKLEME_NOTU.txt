@@ -1,0 +1,191 @@
+================================================================================
+                         NEWSLY UYGULAMA TESLİMAT NOTU
+================================================================================
+
+Bu klasörde bulunan dosyalar:
+- app-release.aab  → Google Play Store için (ZORUNLU)
+- app-release.apk  → Test için (telefona direkt kurulabilir)
+- upload-keystore.jks → İmza dosyası (ÇOK ÖNEMLİ - SAKLAYIN!) (projedosyası/android/app)
+
+================================================================================
+                            KEYSTORE BİLGİLERİ
+================================================================================
+
+Dosya Adı     : upload-keystore.jks
+Store Password: newsly2026
+Key Password  : newsly2026
+Key Alias     : upload
+
+⚠️ ÖNEMLİ: Bu bilgileri güvenli bir yerde saklayın!
+   Keystore kaybedilirse uygulama güncellenemez!
+
+================================================================================
+                      GOOGLE PLAY STORE YÜKLEME ADIMLARI
+================================================================================
+
+1. Google Play Console'a giriş yapın:
+   https://play.google.com/console
+
+2. "Uygulama oluştur" butonuna tıklayın
+
+3. Uygulama bilgilerini doldurun:
+   - Uygulama adı: Newsly (veya istediğiniz isim)
+   - Varsayılan dil: Türkçe
+   - Uygulama türü: Uygulama
+   - Ücretsiz/Ücretli: Ücretsiz
+
+4. Sol menüden "Üretim" > "Sürümler" > "Yeni sürüm oluştur"
+
+5. "App Bundle'lar" bölümüne app-release.aab dosyasını yükleyin
+
+6. Sürüm notları yazın (örn: "İlk sürüm")
+
+7. "İncele" ve "Yayınlamaya başla" butonlarına tıklayın
+
+8. Mağaza girişi için gerekli bilgileri doldurun:
+   - Kısa açıklama (80 karakter)
+   - Tam açıklama (4000 karakter)
+   - Uygulama simgesi (512x512 PNG)
+   - Öne çıkan grafik (1024x500 PNG)
+   - Ekran görüntüleri (en az 2 adet)
+   - Gizlilik politikası URL'si
+
+9. İçerik derecelendirme anketini doldurun
+
+10. Hedef kitle ve içerik bölümünü doldurun
+
+11. İncelemeye gönderin (genellikle 1-3 gün sürer)
+
+================================================================================
+                     APP STORE YÜKLEME (iOS) - DETAYLI
+================================================================================
+
+⚠️ ÖNEMLİ: iOS uygulaması yüklemek için MAC BİLGİSAYAR ZORUNLUDUR!
+   Windows veya Linux'tan iOS uygulaması YÜKLENEMEZ.
+   Bu Apple'ın koyduğu bir kısıtlamadır.
+
+SEÇENEK 1: Mac Bilgisayarınız Varsa
+───────────────────────────────────
+Gerekli şeyler:
+- Mac bilgisayar (MacBook, iMac, Mac Mini vb.)
+- Apple Developer hesabı (99$/yıl - yaklaşık 3000 TL)
+- Xcode programı (Mac App Store'dan ücretsiz indirilir)
+
+Adımlar:
+
+1. Apple Developer Hesabı Oluşturun:
+   - https://developer.apple.com adresine gidin
+   - "Account" butonuna tıklayın
+   - Apple ID ile giriş yapın (yoksa oluşturun)
+   - "Join the Apple Developer Program" butonuna tıklayın
+   - 99$/yıl ödeme yapın
+   - Hesabın aktif olması 24-48 saat sürebilir
+
+2. Mac'e Xcode Kurun:
+   - Mac App Store'u açın
+   - "Xcode" aratın
+   - İndirin ve kurun (yaklaşık 12 GB, uzun sürer)
+
+3. Mac'e Flutter Kurun:
+   - https://flutter.dev adresinden Mac için Flutter indirin
+   - Kurulum talimatlarını takip edin
+
+4. Projeyi Mac'e Aktarın:
+   - Kaynak kod ZIP dosyasını Mac'e kopyalayın
+   - ZIP'i açın
+
+5. Terminal'de Şu Komutları Çalıştırın:
+   cd /projenin/bulundugu/klasor
+   flutter pub get
+   flutter build ios --release
+
+6. Xcode'da Projeyi Açın:
+   - ios/Runner.xcworkspace dosyasını çift tıklayın
+   - Xcode açılacak
+
+7. Xcode'da Ayarları Yapın:
+   - Sol panelde "Runner" projesine tıklayın
+   - "Signing & Capabilities" sekmesine gidin
+   - "Team" kısmında Apple Developer hesabınızı seçin
+   - "Bundle Identifier" kısmında: com.newsly.haber yazın
+
+8. Archive Alın:
+   - Üst menüden: Product > Archive
+   - İşlem bitince "Organizer" penceresi açılır
+
+9. App Store'a Yükleyin:
+   - Organizer'da "Distribute App" butonuna tıklayın
+   - "App Store Connect" seçin
+   - "Upload" seçin
+   - Talimatları takip edin
+
+10. App Store Connect'te Tamamlayın:
+    - https://appstoreconnect.apple.com adresine gidin
+    - "My Apps" > "+" > "New App"
+    - Uygulama bilgilerini doldurun
+    - Yüklenen build'i seçin
+    - İncelemeye gönderin
+
+
+SEÇENEK 2: Mac Bilgisayarınız Yoksa
+───────────────────────────────────
+Alternatif çözümler:
+
+A) Freelancer Tutun:
+   - Bionluk, Fiverr gibi sitelerden iOS yükleme hizmeti alın
+   - Kaynak kodu ve Apple Developer hesap bilgilerini verin
+   - Fiyat: 500-2000 TL arası
+
+B) MacInCloud veya MacStadium Kullanın:
+   - https://www.macincloud.com
+   - Uzaktan Mac bilgisayar kiralama servisi
+   - Saatlik veya aylık ücret
+   - İnternet üzerinden Mac'e bağlanıp işlemleri yaparsınız
+
+C) Codemagic CI/CD Kullanın (Teknik bilgi gerektirir):
+   - https://codemagic.io
+   - Bulut üzerinde otomatik iOS build
+   - Ücretsiz deneme var
+   - Apple Developer hesabı yine gerekli
+
+D) Bir Arkadaşınızın Mac'ini Ödünç Alın:
+   - 1-2 saatlik bir işlem
+   - Xcode kurulu olmalı
+
+
+SEÇENEK 3: iOS Versiyonunu Erteleme
+───────────────────────────────────
+- Önce sadece Android'de yayınlayın
+- iOS versiyonunu daha sonra çıkarın
+- Kullanıcı tabanı oluştuktan sonra iOS'a geçin
+
+================================================================================
+                           UYGULAMA BİLGİLERİ
+================================================================================
+
+Paket Adı (Android): com.newsly.haber
+Bundle ID (iOS)    : com.newsly.haber
+Minimum Android    : 5.0 (API 21)
+Minimum iOS        : 12.0
+
+================================================================================
+                         APK DOSYASI KULLANIMI
+================================================================================
+
+APK dosyası Google Play'e yüklenmez, sadece test içindir.
+
+Telefona Kurulum:
+1. APK dosyasını telefona aktarın (USB, WhatsApp, Drive vb.)
+2. Dosya yöneticisinden APK'ya tıklayın
+3. "Bilinmeyen kaynaklara izin ver" uyarısı çıkarsa izin verin
+4. "Yükle" butonuna tıklayın
+
+================================================================================
+                              DESTEK
+================================================================================
+
+Teknik sorularınız için kaynak kod içindeki rehberlere bakın:
+- KULLANICI_REHBERI.md
+- YONETICI_PANEL_REHBERI.md
+
+================================================================================

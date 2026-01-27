@@ -4,6 +4,7 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/news_model.dart';
 import '../controllers/saved_controller.dart';
 import '../controllers/reading_settings_controller.dart';
@@ -79,9 +80,9 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. KAPAK RESMİ - Okuma modunda gizle
+              // 1. KAPAK RESMİ - Okuma modunda veya hideImages açıksa gizle
               Obx(() {
-                if (readingController.isReadingMode.value) {
+                if (readingController.isReadingMode.value || readingController.hideImages.value) {
                   return const SizedBox.shrink();
                 }
                 if (news.image == null || news.image!.isEmpty) {
@@ -93,8 +94,13 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
                   child: CachedNetworkImage(
                     imageUrl: news.image!,
                     fit: BoxFit.cover,
-                    placeholder: (context, url) =>
-                        const Center(child: CircularProgressIndicator()),
+                    memCacheWidth: 800,
+                    memCacheHeight: 500,
+                    fadeInDuration: const Duration(milliseconds: 200),
+                    fadeOutDuration: const Duration(milliseconds: 200),
+                    placeholder: (context, url) => Container(
+                      color: Colors.grey[200],
+                    ),
                     errorWidget: (context, url, error) => Container(
                       color: Colors.grey[200],
                       child: const Icon(Icons.broken_image, color: Colors.grey),
@@ -178,7 +184,7 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          DateHelper.getTimeAgo(news.date),
+                          DateHelper.getTimeAgo(news.publishedAt ?? news.date),
                           style: TextStyle(
                             color: isDark ? Colors.grey[400] : Colors.grey,
                             fontSize: 13,
@@ -208,6 +214,7 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
   }
 
   Widget _buildContent(BuildContext context, ReadingSettingsController readingController, bool isDark) {
+    final news = widget.news;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -460,6 +467,7 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
   }
 
   Future<void> _openOriginalSource() async {
+    final news = widget.news;
     if (news.sourceUrl == null || news.sourceUrl!.isEmpty) {
       Get.snackbar(
         'Hata',
@@ -481,35 +489,59 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
     );
   }
 
-  /// Haberi paylaş - Linki panoya kopyala ve bildirim göster
+  /// Haberi paylaş - Native share sheet aç
   Future<void> _shareNews() async {
+    final news = widget.news;
     final title = news.title ?? 'Haber';
     final url = news.sourceUrl ?? '';
+    final sourceName = news.sourceName ?? 'Newsly';
     
-    String shareText = title;
+    // Paylaşım metni oluştur
+    String shareText = '$title\n\n';
     if (url.isNotEmpty) {
-      shareText = '$title\n$url';
+      shareText += '$url\n\n';
     }
+    shareText += '$sourceName üzerinden Newsly ile paylaşıldı';
     
     try {
-      await Clipboard.setData(ClipboardData(text: shareText));
-      Get.snackbar(
-        'Kopyalandı',
-        'Haber linki panoya kopyalandı',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
-        icon: const Icon(Icons.check_circle, color: Colors.white),
+      // Native share sheet'i aç
+      final result = await Share.share(
+        shareText,
+        subject: title,
       );
+      
+      // Analytics log
+      if (result.status == ShareResultStatus.success) {
+        try {
+          await Get.find<AnalyticsService>().logNewsShare(
+            newsId: news.id ?? '',
+            newsTitle: title,
+            method: 'native_share',
+          );
+        } catch (_) {}
+      }
     } catch (e) {
-      Get.snackbar(
-        'Hata',
-        'Kopyalama yapılamadı',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      // Hata durumunda panoya kopyala
+      try {
+        await Clipboard.setData(ClipboardData(text: shareText));
+        Get.snackbar(
+          'Kopyalandı',
+          'Haber linki panoya kopyalandı',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+          icon: const Icon(Icons.check_circle, color: Colors.white),
+        );
+      } catch (_) {
+        Get.snackbar(
+          'Hata',
+          'Paylaşım yapılamadı',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
     }
   }
 }
@@ -533,6 +565,7 @@ class _WebViewBottomSheetState extends State<_WebViewBottomSheet> {
   bool _isLoading = true;
   int _loadingProgress = 0;
   String? _errorMessage;
+  bool _pageLoaded = false;
 
   @override
   void initState() {
@@ -543,29 +576,43 @@ class _WebViewBottomSheetState extends State<_WebViewBottomSheet> {
   void _initWebView() {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setUserAgent('Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36')
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
-            setState(() {
-              _isLoading = true;
-              _errorMessage = null;
-            });
+            if (mounted) {
+              setState(() {
+                _isLoading = true;
+                _errorMessage = null;
+                _pageLoaded = false;
+              });
+            }
           },
           onProgress: (int progress) {
-            setState(() {
-              _loadingProgress = progress;
-            });
+            if (mounted) {
+              setState(() {
+                _loadingProgress = progress;
+              });
+            }
           },
           onPageFinished: (String url) {
-            setState(() {
-              _isLoading = false;
-            });
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+                _pageLoaded = true;
+              });
+            }
           },
           onWebResourceError: (WebResourceError error) {
-            setState(() {
-              _isLoading = false;
-              _errorMessage = 'Sayfa yüklenemedi';
-            });
+            // Sadece ana frame hatalarında error göster
+            if (error.isForMainFrame == true && !_pageLoaded) {
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                  _errorMessage = 'Sayfa yüklenemedi';
+                });
+              }
+            }
           },
         ),
       )
@@ -767,6 +814,7 @@ class _WebViewFullScreenState extends State<_WebViewFullScreen> {
   bool _isLoading = true;
   int _loadingProgress = 0;
   String? _errorMessage;
+  bool _pageLoaded = false;
 
   @override
   void initState() {
@@ -778,29 +826,54 @@ class _WebViewFullScreenState extends State<_WebViewFullScreen> {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.white)
+      ..setUserAgent('Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36')
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
-            setState(() {
-              _isLoading = true;
-              _errorMessage = null;
-            });
+            if (mounted) {
+              setState(() {
+                _isLoading = true;
+                _errorMessage = null;
+                _pageLoaded = false;
+              });
+            }
           },
           onProgress: (int progress) {
-            setState(() {
-              _loadingProgress = progress;
-            });
+            if (mounted) {
+              setState(() {
+                _loadingProgress = progress;
+              });
+            }
           },
           onPageFinished: (String url) {
-            setState(() {
-              _isLoading = false;
-            });
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+                _pageLoaded = true;
+              });
+            }
           },
           onWebResourceError: (WebResourceError error) {
-            setState(() {
-              _isLoading = false;
-              _errorMessage = 'Sayfa yüklenemedi';
-            });
+            // Sadece ana frame hatalarında error göster
+            // isForMainFrame true ise veya error type UNKNOWN değilse
+            if (error.isForMainFrame == true && !_pageLoaded) {
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                  _errorMessage = 'Sayfa yüklenemedi';
+                });
+              }
+            }
+            // Diğer resource hataları (resim, css, js) için error gösterme
+            print('WebView resource error: ${error.description} - isMainFrame: ${error.isForMainFrame}');
+          },
+          onHttpError: (HttpResponseError error) {
+            // HTTP hataları (404, 500 vb.) için
+            if (error.response?.statusCode != null && 
+                error.response!.statusCode! >= 400 &&
+                !_pageLoaded) {
+              print('HTTP Error: ${error.response?.statusCode}');
+            }
           },
         ),
       )

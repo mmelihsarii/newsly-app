@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
+import '../services/user_service.dart';
 import 'city_selection_view.dart';
+import 'dashboard_view.dart';
 
 class EmailLoginView extends StatefulWidget {
   const EmailLoginView({super.key});
@@ -28,6 +30,20 @@ class _EmailLoginViewState extends State<EmailLoginView> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', true);
     await prefs.setInt('lastLoginTime', DateTime.now().millisecondsSinceEpoch);
+  }
+  
+  /// Giriş sonrası onboarding durumuna göre yönlendir
+  Future<void> _navigateAfterLogin() async {
+    final userService = Get.find<UserService>();
+    final onboardingCompleted = await userService.checkOnboardingStatus();
+    
+    if (onboardingCompleted) {
+      // Onboarding tamamlanmış, direkt anasayfaya git
+      Get.offAll(() => DashboardView());
+    } else {
+      // Onboarding tamamlanmamış, şehir seçimine git
+      Get.offAll(() => const CitySelectionView());
+    }
   }
 
   Future<void> _signIn() async {
@@ -54,7 +70,14 @@ class _EmailLoginViewState extends State<EmailLoginView> {
 
     if (result != null) {
       await _markAsLoggedIn();
-      Get.offAll(() => const CitySelectionView());
+      
+      // Yeni kayıt ise direkt onboarding'e git
+      if (!_isSignIn) {
+        Get.offAll(() => const CitySelectionView());
+      } else {
+        // Giriş ise onboarding durumunu kontrol et
+        await _navigateAfterLogin();
+      }
     }
   }
 
@@ -62,12 +85,16 @@ class _EmailLoginViewState extends State<EmailLoginView> {
     final result = await _authService.signInWithGoogle();
     if (result != null) {
       await _markAsLoggedIn();
-      Get.offAll(() => const CitySelectionView());
+      await _navigateAfterLogin();
     }
   }
 
-  void _signInWithApple() {
-    _authService.signInWithApple();
+  Future<void> _signInWithApple() async {
+    final result = await _authService.signInWithApple();
+    if (result != null) {
+      await _markAsLoggedIn();
+      await _navigateAfterLogin();
+    }
   }
 
   void _forgotPassword() {

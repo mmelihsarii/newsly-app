@@ -5,7 +5,7 @@ class CategoryColors {
   /// Get color based on category name
   static Color getColor(String? categoryName) {
     if (categoryName == null || categoryName.isEmpty) {
-      return Colors.blueGrey;
+      return const Color(0xFF64748B); // Slate blue - daha iyi görünüm
     }
 
     final name = categoryName.toLowerCase();

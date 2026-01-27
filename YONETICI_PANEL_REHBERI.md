@@ -21,9 +21,6 @@ Her gün yapılması gereken kontroller:
 - Son 24 saatte haber gelip gelmediğini kontrol edin
 - Boş veya bozuk haberler varsa silin
 
-### 3. Kullanıcı Şikayetlerini İncele
-- E-posta veya uygulama içi geri bildirimleri kontrol edin
-
 ---
 
 ## ➕ Yeni Haber Kaynağı Ekleme
@@ -100,7 +97,54 @@ Bu sorun otomatik düzeltilmeli. Düzelmiyorsa:
 
 ---
 
-### Sorun 4: Bildirimler Gitmiyor
+### Sorun 4: Kaynaklar Birleşmiş Görünüyor (ÖNEMLİ!)
+
+**Belirtiler:**
+- Kaynak seçim ekranında "Sözcü Ekonomi", "Sözcü Spor" yerine sadece "Sözcü" görünüyor
+- Farklı kaynaklar aynı isimle gösteriliyor
+- Seçim yapılamıyor
+
+**Neden Oluyor:**
+RSS kaynağı eklerken "Feed Name" alanına aynı isim girilmiş. Örneğin:
+- sozcu → "Sözcü"
+- sozcuekonomi → "Sözcü" (YANLIŞ! "Sözcü Ekonomi" olmalı)
+- sozcuspor → "Sözcü" (YANLIŞ! "Sözcü Spor" olmalı)
+
+**Çözüm 1: Firebase Console'dan Manuel Düzeltme**
+
+1. https://console.firebase.google.com adresine gidin
+2. "newsly-70ef9" projesini seçin
+3. Sol menü → Firestore Database
+4. `news_sources` koleksiyonuna tıklayın
+5. Düzeltmek istediğiniz kaynağı bulun (örn: `sozcuekonomi`)
+6. `name` alanına tıklayın
+7. Doğru ismi yazın: "Sözcü Ekonomi"
+8. Kaydet
+
+**Çözüm 2: PHP Script ile Toplu Düzeltme**
+
+1. `backend/FIX_SOURCE_NAMES.php` dosyasını sunucuya yükleyin
+2. Dosyadaki `$sourceNameMap` dizisini kendi kaynaklarınıza göre düzenleyin
+3. Tarayıcıdan çalıştırın
+
+**Doğru İsimlendirme Örnekleri:**
+
+| Document ID | Doğru İsim |
+|-------------|------------|
+| sozcu | Sözcü |
+| sozcuekonomi | Sözcü Ekonomi |
+| sozcuspor | Sözcü Spor |
+| sozcusondakika | Sözcü Son Dakika |
+| hurriyet | Hürriyet |
+| hurriyetspor | Hürriyet Spor |
+
+**Yeni Kaynak Eklerken:**
+- Her kaynak için BENZERSİZ bir "Feed Name" girin
+- "Sözcü" yerine "Sözcü Ekonomi", "Sözcü Spor" gibi ayırt edici isimler kullanın
+
+---
+
+### Sorun 5: Bildirimler Gitmiyor
 
 **Kontrol Listesi:**
 

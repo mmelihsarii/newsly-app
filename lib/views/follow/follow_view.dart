@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../controllers/follow_controller.dart';
 import '../../controllers/dashboard_controller.dart';
 import '../../controllers/home_controller.dart';
@@ -8,12 +9,12 @@ import '../../services/notification_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/source_model.dart';
 import '../../utils/colors.dart';
+import '../../utils/source_logos.dart';
 import '../../widgets/notification_bottom_sheet.dart';
 import '../source_profile_view.dart';
-import '../source_selection_view.dart';
-import '../login_view.dart';
 import '../live_stream_view.dart';
 import '../dashboard_view.dart';
+import 'add_source_view.dart';
 
 class FollowView extends StatelessWidget {
   const FollowView({super.key});
@@ -52,41 +53,136 @@ class FollowView extends StatelessWidget {
           );
         }
 
-        // Hiç kaynak seçilmemişse
         if (controller.selectedSources.isEmpty) {
           return _buildEmptyState(isDark);
         }
 
-        // Kategorilere göre grupla
-        final groupedSources = <String, List<SourceModel>>{};
-        for (final source in controller.selectedSources) {
-          final category = source.category.isNotEmpty ? source.category : 'Diğer';
-          groupedSources.putIfAbsent(category, () => []);
-          groupedSources[category]!.add(source);
-        }
-
-        // Kategorileri alfabetik sırala
-        final sortedCategories = groupedSources.keys.toList()..sort();
-
         return RefreshIndicator(
           onRefresh: () => controller.refreshSources(),
           color: AppColors.primary,
-          child: Container(
-            color: isDark ? const Color(0xFF1A2F47) : Colors.white,
-            child: ListView.builder(
-              padding: const EdgeInsets.only(top: 0, bottom: 100),
-              itemCount: sortedCategories.length,
-              itemBuilder: (context, index) {
-                final category = sortedCategories[index];
-                final sources = groupedSources[category]!..sort((a, b) => a.name.compareTo(b.name));
-                final color = _getCategoryColor(category);
-
-                return _buildCategorySection(category, sources, color, isDark);
-              },
-            ),
+          child: ListView.builder(
+            padding: const EdgeInsets.only(top: 8, bottom: 100),
+            itemCount: controller.selectedSources.length,
+            itemBuilder: (context, index) {
+              final source = controller.selectedSources[index];
+              return _buildSourceCard(source, isDark);
+            },
           ),
         );
       }),
+    );
+  }
+
+  /// Yeni tasarım: Liste görünümü - Logo + Başlık + Kategori
+  Widget _buildSourceCard(SourceModel source, bool isDark) {
+    final categoryColor = _getCategoryColor(source.category);
+    final logoUrl = SourceLogos.getLogoUrl(source.name);
+
+    return GestureDetector(
+      onTap: () => Get.to(() => SourceProfileView(source: source)),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1A2F47) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? const Color(0xFF2A4F67) : Colors.grey.shade200,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Sol: Kare Logo
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: categoryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: categoryColor.withOpacity(0.3)),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(11),
+                child: logoUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: logoUrl,
+                        fit: BoxFit.contain,
+                        memCacheWidth: 100,
+                        memCacheHeight: 100,
+                        fadeInDuration: const Duration(milliseconds: 150),
+                        placeholder: (_, __) => _buildLogoPlaceholder(source, categoryColor),
+                        errorWidget: (_, __, ___) => _buildLogoPlaceholder(source, categoryColor),
+                      )
+                    : _buildLogoPlaceholder(source, categoryColor),
+              ),
+            ),
+            const SizedBox(width: 14),
+            // Sağ: Başlık + Kategori
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    source.name,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: categoryColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      source.category.isNotEmpty ? source.category : 'Genel',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: categoryColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Sağ ok
+            Icon(
+              Icons.chevron_right,
+              color: isDark ? Colors.white38 : Colors.grey.shade400,
+              size: 24,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogoPlaceholder(SourceModel source, Color color) {
+    return Container(
+      color: color.withOpacity(0.1),
+      child: Center(
+        child: Text(
+          source.name.isNotEmpty ? source.name[0].toUpperCase() : '?',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ),
     );
   }
 
@@ -128,9 +224,8 @@ class FollowView extends StatelessWidget {
             const SizedBox(height: 32),
             ElevatedButton.icon(
               onPressed: () {
-                // Üye kontrolü
                 if (authService.isLoggedIn && !authService.isGuest) {
-                  Get.to(() => SourceSelectionView());
+                  Get.to(() => const AddSourceView());
                 } else {
                   Get.snackbar(
                     'Üyelik Gerekli',
@@ -143,7 +238,7 @@ class FollowView extends StatelessWidget {
                 }
               },
               icon: const Icon(Icons.add),
-              label: const Text('Kaynak Seç'),
+              label: const Text('Kaynak Ekle'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -157,130 +252,9 @@ class FollowView extends StatelessWidget {
     );
   }
 
-  Widget _buildCategorySection(String category, List<SourceModel> sources, Color color, bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Category Header
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1A2F47) : Colors.white,
-            border: Border(
-              left: BorderSide(color: color, width: 4),
-              bottom: BorderSide(color: isDark ? const Color(0xFF2A4F67) : Colors.grey.shade200, width: 1),
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(_getCategoryIcon(category), color: color, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      category,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                    ),
-                    Text(
-                      '${sources.length} kaynak',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? Colors.white54 : Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Sources Grid
-        Container(
-          width: double.infinity,
-          color: isDark ? const Color(0xFF1A2F47) : Colors.white,
-          padding: const EdgeInsets.all(12),
-          child: Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: sources.map((source) => _buildSourceChip(source, color, isDark)).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSourceChip(SourceModel source, Color color, bool isDark) {
-    return GestureDetector(
-      onTap: () => Get.to(() => SourceProfileView(source: source)),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF132440) : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isDark ? const Color(0xFF2A4F67) : Colors.grey.shade300),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  source.name.isNotEmpty ? source.name[0].toUpperCase() : '?',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              source.name,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isDark ? Colors.white70 : Colors.grey.shade700,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.chevron_right, size: 18, color: isDark ? Colors.white38 : Colors.grey.shade400),
-          ],
-        ),
-      ),
-    );
-  }
-
-  IconData _getCategoryIcon(String category) {
-    final c = category.toLowerCase();
-    if (c.contains('gündem')) return Icons.newspaper;
-    if (c.contains('son dakika')) return Icons.flash_on;
-    if (c.contains('spor')) return Icons.sports_soccer;
-    if (c.contains('ekonomi')) return Icons.trending_up;
-    if (c.contains('teknoloji')) return Icons.computer;
-    if (c.contains('bilim')) return Icons.science;
-    if (c.contains('ajans')) return Icons.rss_feed;
-    if (c.contains('yerel')) return Icons.location_city;
-    if (c.contains('yabancı') || c.contains('dünya')) return Icons.public;
-    return Icons.article;
-  }
-
   AppBar _buildAppBar(BuildContext context, bool isDark) {
+    final authService = Get.find<AuthService>();
+    
     return AppBar(
       backgroundColor: isDark ? const Color(0xFF1A2F47) : Colors.white,
       elevation: 0,
@@ -291,20 +265,41 @@ class FollowView extends StatelessWidget {
         onPressed: () => mainScaffoldKey.currentState?.openDrawer(),
         icon: const Icon(Icons.menu, color: Color(0xFFF4220B), size: 32),
       ),
-      title: Transform.translate(
-        offset: const Offset(-30, 0),
-        child: SizedBox(
-          height: 100,
-          width: 180,
-          child: SvgPicture.asset(
-            'assets/logo.svg',
-            fit: BoxFit.contain,
-            colorFilter: const ColorFilter.mode(Color(0xFFF4220B), BlendMode.srcIn),
-          ),
+      title: SizedBox(
+        height: 100,
+        width: 150,
+        child: SvgPicture.asset(
+          'assets/logo.svg',
+          fit: BoxFit.contain,
+          colorFilter: const ColorFilter.mode(Color(0xFFF4220B), BlendMode.srcIn),
         ),
       ),
       centerTitle: false,
       actions: [
+        // + Butonu - Kaynak Ekle
+        IconButton(
+          onPressed: () {
+            if (authService.isLoggedIn && !authService.isGuest) {
+              Get.to(() => const AddSourceView());
+            } else {
+              Get.snackbar(
+                'Üyelik Gerekli',
+                'Kaynak eklemek için lütfen üye girişi yapın.',
+                snackPosition: SnackPosition.BOTTOM,
+                backgroundColor: Colors.orange,
+                colorText: Colors.white,
+              );
+            }
+          },
+          icon: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4220B).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.add, color: Color(0xFFF4220B), size: 22),
+          ),
+        ),
         IconButton(
           onPressed: () {
             final dashboardController = Get.find<DashboardController>();
@@ -340,7 +335,7 @@ class FollowView extends StatelessWidget {
               icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFFF4220B), size: 28),
             ),
             Obx(() {
-              final notificationService = NotificationService();
+              final notificationService = Get.find<NotificationService>();
               if (notificationService.unreadCount == 0) return const SizedBox.shrink();
               return Positioned(
                 right: 8,

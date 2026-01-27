@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../controllers/profile_controller.dart';
 import '../../controllers/theme_controller.dart';
 import '../../controllers/dashboard_controller.dart';
+import '../../controllers/reading_settings_controller.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_service.dart';
 import '../../utils/colors.dart';
@@ -107,6 +108,7 @@ class _ProfileViewState extends State<ProfileView> {
 
   Widget _buildUserProfile(ProfileController controller, dynamic user) {
     final themeController = Get.find<ThemeController>();
+    final readingController = Get.find<ReadingSettingsController>();
 
     return SingleChildScrollView(
       child: Column(
@@ -118,6 +120,9 @@ class _ProfileViewState extends State<ProfileView> {
           const SizedBox(height: 20),
           // Dark Mode Switch
           _buildDarkModeSwitch(themeController),
+          const SizedBox(height: 12),
+          // Görselleri Gizle Switch
+          _buildHideImagesSwitch(readingController),
           const SizedBox(height: 20),
           _buildEditButton(controller),
           const SizedBox(height: 20),
@@ -143,32 +148,111 @@ class _ProfileViewState extends State<ProfileView> {
       ),
       child: Column(
         children: [
-          // Profil Resmi (Devre Dışı)
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFF4220B), width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+          // Profil Resmi
+          GestureDetector(
+            onTap: () => controller.showImageSourceOptions(),
+            child: Stack(
+              children: [
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFF4220B), width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Obx(() {
+                    final photoUrl = controller.profileImageUrl.value ?? 
+                        Get.find<UserService>().userProfile.value?['photoUrl'];
+                    
+                    if (controller.isLoading.value) {
+                      return ClipOval(
+                        child: Container(
+                          color: Get.isDarkMode
+                              ? const Color(0xFF1A2F47)
+                              : Colors.grey.shade200,
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              color: Color(0xFFF4220B),
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    
+                    if (photoUrl != null && photoUrl.isNotEmpty) {
+                      return ClipOval(
+                        child: CachedNetworkImage(
+                          imageUrl: photoUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(
+                            color: Get.isDarkMode
+                                ? const Color(0xFF1A2F47)
+                                : Colors.grey.shade200,
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFFF4220B),
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          ),
+                          errorWidget: (_, __, ___) => Container(
+                            color: Get.isDarkMode
+                                ? const Color(0xFF1A2F47)
+                                : Colors.grey.shade200,
+                            child: Icon(
+                              Icons.person,
+                              size: 50,
+                              color: Get.isDarkMode ? Colors.white54 : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    
+                    return ClipOval(
+                      child: Container(
+                        color: Get.isDarkMode
+                            ? const Color(0xFF1A2F47)
+                            : Colors.grey.shade200,
+                        child: Icon(
+                          Icons.person,
+                          size: 50,
+                          color: Get.isDarkMode ? Colors.white54 : Colors.grey,
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+                // Kamera ikonu
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF4220B),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Get.isDarkMode ? const Color(0xFF132440) : Colors.white,
+                        width: 3,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
                 ),
               ],
-            ),
-            child: ClipOval(
-              child: Container(
-                color: Get.isDarkMode
-                    ? const Color(0xFF1A2F47)
-                    : Colors.grey.shade200,
-                child: Icon(
-                  Icons.person,
-                  size: 50,
-                  color: Get.isDarkMode ? Colors.white54 : Colors.grey,
-                ),
-              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -605,6 +689,78 @@ class _ProfileViewState extends State<ProfileView> {
               () => Switch(
                 value: themeController.isDarkMode.value,
                 onChanged: (value) => themeController.toggleTheme(),
+                activeColor: const Color(0xFFF4220B),
+                activeTrackColor: const Color(0xFFF4220B).withOpacity(0.5),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHideImagesSwitch(ReadingSettingsController readingController) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Get.isDarkMode ? const Color(0xFF1A2F47) : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: Get.isDarkMode
+                ? const Color(0xFF2A4F67)
+                : Colors.grey.shade200,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4220B).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Obx(() => Icon(
+                readingController.hideImages.value
+                    ? Icons.image_not_supported
+                    : Icons.image,
+                color: const Color(0xFFF4220B),
+                size: 24,
+              )),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Haber Görsellerini Kapat',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Get.isDarkMode ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Obx(() => Text(
+                    readingController.hideImages.value
+                        ? 'Görseller gizli'
+                        : 'Görseller görünür',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Get.isDarkMode
+                          ? Colors.white70
+                          : Colors.grey.shade600,
+                    ),
+                  )),
+                ],
+              ),
+            ),
+            Obx(
+              () => Switch(
+                value: readingController.hideImages.value,
+                onChanged: (value) => readingController.toggleHideImages(),
                 activeColor: const Color(0xFFF4220B),
                 activeTrackColor: const Color(0xFFF4220B).withOpacity(0.5),
               ),

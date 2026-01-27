@@ -5,7 +5,7 @@ import '../services/notification_service.dart';
 
 /// Bildirim Bottom Sheet'i gösteren fonksiyon
 void showNotificationsBottomSheet(BuildContext context) {
-  final notificationService = NotificationService();
+  final notificationService = Get.find<NotificationService>();
   final isDark = Theme.of(context).brightness == Brightness.dark;
 
   showModalBottomSheet(
@@ -35,43 +35,51 @@ void showNotificationsBottomSheet(BuildContext context) {
             ),
             // Header
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     'Bildirimler',
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
-                  Row(
-                    children: [
-                      Obx(() {
-                        if (notificationService.notifications.isEmpty) {
-                          return const SizedBox.shrink();
-                        }
-                        return TextButton(
-                          onPressed: () {
-                            notificationService.markAllAsRead();
-                          },
-                          child: const Text(
-                            'Tümünü Okundu İşaretle',
-                            style: TextStyle(
-                              color: Color(0xFFF4220B),
-                              fontSize: 12,
-                            ),
+                  const SizedBox(width: 8),
+                  // Yenile butonu
+                  Obx(() => notificationService.isLoading.value
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : InkWell(
+                          onTap: () => notificationService.refreshNotifications(),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(Icons.refresh, size: 20, color: isDark ? Colors.white54 : Colors.grey),
                           ),
-                        );
-                      }),
-                      IconButton(
-                        icon: Icon(Icons.close, color: isDark ? Colors.white54 : Colors.grey),
-                        onPressed: () => Navigator.pop(context),
+                        )),
+                  const Spacer(),
+                  // Tümünü okundu işaretle
+                  Obx(() {
+                    if (notificationService.notifications.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return GestureDetector(
+                      onTap: () => notificationService.markAllAsRead(),
+                      child: Text(
+                        'Tümünü Okundu İşaretle',
+                        style: TextStyle(
+                          color: const Color(0xFFF4220B),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ],
-                  ),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -93,12 +101,8 @@ void showNotificationsBottomSheet(BuildContext context) {
                       notification: notification,
                       isDark: isDark,
                       onTap: () {
-                        notificationService.markAsRead(notification.id);
-                        // Eğer data'da newsId varsa detaya git
-                        if (notification.data?.containsKey('newsId') ?? false) {
-                          Navigator.pop(context);
-                          // Navigation işlemi NotificationService içinde yapılabilir
-                        }
+                        Navigator.pop(context); // Bottom sheet'i kapat
+                        notificationService.openNotificationDetail(notification);
                       },
                       onDismiss: () {
                         notificationService.removeNotification(notification.id);
@@ -278,7 +282,11 @@ class _NotificationTile extends StatelessWidget {
     } else if (diff.inDays < 7) {
       return '${diff.inDays} gün önce';
     } else {
-      return DateFormat('dd MMM', 'tr_TR').format(time);
+      try {
+        return DateFormat('dd MMM', 'tr_TR').format(time);
+      } catch (_) {
+        return '${time.day}/${time.month}';
+      }
     }
   }
 }

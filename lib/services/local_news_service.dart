@@ -1,7 +1,8 @@
 // ignore_for_file: avoid_print
 
+import 'dart:convert';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 import 'package:intl/intl.dart';
 import '../models/news_model.dart';
@@ -34,7 +35,7 @@ class LocalSource {
   }
 }
 
-/// Yerel Haber Servisi - news_sources koleksiyonundan "Yerel Haberler" kategorisini çeker
+/// Yerel Haber Servisi
 class LocalNewsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -43,31 +44,18 @@ class LocalNewsService {
   DateTime? _cacheTime;
   static const int _cacheDurationMinutes = 30;
 
-  // Yerel haber kategorileri (Firestore'daki category alanı ile TAM eşleşmeli)
-  static const List<String> localCategories = [
-    'Yerel Haberler',
-    'Yerel',
-    'yerel haberler',
-    'yerel',
-    'Local',
-    'local',
-    'Yerel_Haberler',
-    'yerel_haberler',
-  ];
-
-  /// news_sources koleksiyonundan yerel haber kaynaklarını çek
+  /// Firestore'dan "Yerel Haberler" kategorisindeki kaynakları çek
   Future<List<LocalSource>> fetchLocalSources({bool forceRefresh = false}) async {
     // Cache kontrolü
     if (!forceRefresh && _cachedSources != null && _cacheTime != null) {
       final age = DateTime.now().difference(_cacheTime!).inMinutes;
       if (age < _cacheDurationMinutes) {
-        print('📦 Cache\'den ${_cachedSources!.length} yerel kaynak yüklendi');
         return _cachedSources!;
       }
     }
 
     try {
-      print('🔍 Firestore news_sources\'dan yerel kaynaklar sorgulanıyor...');
+      print('🔍 Firestore\'dan yerel kaynaklar çekiliyor...');
       
       // news_sources koleksiyonundan aktif olanları çek
       QuerySnapshot snapshot = await _firestore
@@ -80,34 +68,36 @@ class LocalNewsService {
       if (snapshot.docs.isNotEmpty) {
         print('📊 Toplam ${snapshot.docs.length} aktif kaynak bulundu');
         
-        // Debug: Tüm kategorileri listele
-        final allCategories = <String>{};
+        // Tüm kaynakları kontrol et
         for (var doc in snapshot.docs) {
           final data = doc.data() as Map<String, dynamic>? ?? {};
-          final cat = data['category']?.toString() ?? '';
-          if (cat.isNotEmpty) allCategories.add(cat);
+          final category = data['category']?.toString() ?? '';
+          final name = data['name']?.toString() ?? '';
+          final rssUrl = data['rss_url']?.toString() ?? data['url']?.toString() ?? '';
+          
+          // Kategori kontrolü - "Yerel Haberler" veya "Yerel" içeren
+          if (_isLocalCategory(category) && rssUrl.isNotEmpty) {
+            sources.add(LocalSource(
+              id: doc.id,
+              name: name,
+              rssUrl: rssUrl,
+              isActive: true,
+              category: category,
+            ));
+          }
         }
-        print('📁 Mevcut kategoriler: $allCategories');
         
-        // Kategorisi SADECE "Yerel Haberler" veya "Yerel" olanları filtrele
-        sources = snapshot.docs
-            .map((doc) => LocalSource.fromFirestore(doc))
-            .where((s) => _isLocalCategory(s.category) && s.rssUrl.isNotEmpty)
-            .toList();
+        print('✅ ${sources.length} yerel kaynak filtrelendi');
         
-        print('☁️ news_sources\'dan ${sources.length} yerel kaynak bulundu');
-        
-        // Debug: Bulunan kaynakları listele
-        for (var s in sources) {
-          print('   📍 ${s.name} (${s.category}) - ${s.rssUrl}');
+        // Debug: İlk 10 kaynağı listele
+        for (var i = 0; i < sources.length && i < 10; i++) {
+          print('   📍 ${sources[i].name}');
+        }
+        if (sources.length > 10) {
+          print('   ... ve ${sources.length - 10} kaynak daha');
         }
       } else {
-        print('⚠️ Firestore\'da hiç aktif kaynak yok!');
-      }
-
-      if (sources.isEmpty) {
-        print('⚠️ Yerel haber kategorisinde kaynak bulunamadı');
-        print('💡 news_sources koleksiyonuna category: "Yerel Haberler" olan kaynaklar ekleyin');
+        print('⚠️ Firestore\'da hiç aktif kaynak yok');
       }
 
       // Alfabetik sırala
@@ -124,63 +114,84 @@ class LocalNewsService {
     }
   }
 
-  /// Kategori yerel mi kontrol et - SADECE TAM EŞLEŞMELİ
+  /// Kategori yerel mi kontrol et
   bool _isLocalCategory(String category) {
     if (category.isEmpty) return false;
     
-    final normalizedCategory = _normalizeText(category);
+    final normalized = _normalizeText(category);
     
-    // SADECE tam eşleşme kontrolü - "Yerel Haberler" veya "Yerel"
-    // "Bilim Teknoloji", "Spor" vs. dahil DEĞİL
-    for (final localCat in localCategories) {
-      if (normalizedCategory == _normalizeText(localCat)) {
-        return true;
-      }
-    }
-    
-    return false;
-  }
-  
-  /// Türkçe karakterleri normalize et
-  String _normalizeText(String text) {
-    const Map<String, String> turkishChars = {
-      'ı': 'i', 'İ': 'i', 'ğ': 'g', 'Ğ': 'g',
-      'ü': 'u', 'Ü': 'u', 'ş': 's', 'Ş': 's',
-      'ö': 'o', 'Ö': 'o', 'ç': 'c', 'Ç': 'c',
-    };
-
-    String normalized = text.toLowerCase().trim();
-    turkishChars.forEach((key, value) {
-      normalized = normalized.replaceAll(key, value);
-    });
-    // Alt çizgi ve boşlukları kaldır
-    normalized = normalized.replaceAll('_', '').replaceAll(' ', '');
-    return normalized;
+    // "Yerel Haberler", "Yerel", "yerel_haberler" vb. eşleşmeler
+    return normalized.contains('yerel') || 
+           normalized == 'local' ||
+           normalized.contains('local') ||
+           normalized == 'yerelhaberler' ||
+           normalized == 'yerel_haberler';
   }
 
   /// Belirli bir kaynağın haberlerini çek
   Future<List<NewsModel>> fetchNewsForSource(String sourceName, String rssUrl) async {
-    if (rssUrl.isEmpty) {
-      print('⚠️ RSS URL boş: $sourceName');
-      return [];
-    }
+    if (rssUrl.isEmpty) return [];
 
     try {
       print('📡 $sourceName haberleri çekiliyor...');
       
-      final response = await http.get(Uri.parse(rssUrl))
-          .timeout(const Duration(seconds: 10));
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 10);
+      
+      final request = await client.getUrl(Uri.parse(rssUrl));
+      request.headers.set('User-Agent', 'Mozilla/5.0');
+      request.headers.set('Accept', 'application/rss+xml, application/xml, text/xml, */*');
+      
+      final response = await request.close().timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        final news = _parseRssFeed(response.body, sourceName);
+        final bytes = await response.fold<List<int>>(
+          <int>[],
+          (List<int> previous, List<int> element) => previous..addAll(element),
+        );
+        
+        // UTF-8 decode with fallback
+        String body;
+        try {
+          body = utf8.decode(bytes, allowMalformed: true);
+        } catch (_) {
+          body = String.fromCharCodes(bytes);
+        }
+        
+        // Türkçe karakter düzeltmesi
+        body = _fixTurkishEncoding(body);
+        
+        final news = _parseRssFeed(body, sourceName);
         print('✅ $sourceName: ${news.length} haber');
+        client.close();
         return news;
       }
+      
+      client.close();
     } catch (e) {
       print('❌ $sourceName haber çekme hatası: $e');
     }
 
     return [];
+  }
+  
+  /// Türkçe karakter encoding sorunlarını düzelt
+  String _fixTurkishEncoding(String text) {
+    // UTF-8 double encoding düzeltmeleri
+    final fixes = {
+      'Ä±': 'ı', 'Ä°': 'İ', 'ÄŸ': 'ğ', 'Ä': 'Ğ',
+      'Ã¼': 'ü', 'Ãœ': 'Ü', 'ÅŸ': 'ş', 'Å': 'Ş',
+      'Ã¶': 'ö', 'Ã–': 'Ö', 'Ã§': 'ç', 'Ã‡': 'Ç',
+      'â€™': "'", 'â€œ': '"', 'â€': '"',
+      'â€"': '–', 'â€"': '—', 'â€¦': '...',
+    };
+    
+    String result = text;
+    fixes.forEach((wrong, correct) {
+      result = result.replaceAll(wrong, correct);
+    });
+    
+    return result;
   }
 
   /// RSS XML'i parse et
@@ -189,13 +200,25 @@ class LocalNewsService {
 
     try {
       final document = XmlDocument.parse(xmlData);
-      final items = document.findAllElements('item').take(20);
+      
+      // RSS ve Atom formatlarını destekle
+      var items = document.findAllElements('item');
+      if (items.isEmpty) {
+        items = document.findAllElements('entry');
+      }
 
-      for (var item in items) {
+      for (var item in items.take(20)) {
         final title = item.findElements('title').singleOrNull?.innerText;
-        final description = item.findElements('description').singleOrNull?.innerText;
-        final link = item.findElements('link').singleOrNull?.innerText;
-        final pubDateStr = item.findElements('pubDate').singleOrNull?.innerText;
+        final description = item.findElements('description').singleOrNull?.innerText ??
+                           item.findElements('summary').singleOrNull?.innerText;
+        
+        String? link = item.findElements('link').singleOrNull?.innerText;
+        if (link == null || link.isEmpty) {
+          link = item.findElements('link').firstOrNull?.getAttribute('href');
+        }
+        
+        final pubDateStr = item.findElements('pubDate').singleOrNull?.innerText ??
+                          item.findElements('published').singleOrNull?.innerText;
 
         String? imageUrl = _extractImage(item, description);
 
@@ -205,9 +228,12 @@ class LocalNewsService {
         if (pubDateStr != null && pubDateStr.isNotEmpty) {
           publishedAt = _parseRssDate(pubDateStr);
           if (publishedAt != null) {
-            formattedDate = DateFormat('dd MMM HH:mm').format(publishedAt);
-          } else {
-            formattedDate = pubDateStr;
+            // Türkçe locale ile formatla
+            try {
+              formattedDate = DateFormat('dd MMM HH:mm', 'tr_TR').format(publishedAt);
+            } catch (_) {
+              formattedDate = '${publishedAt.day}/${publishedAt.month} ${publishedAt.hour}:${publishedAt.minute.toString().padLeft(2, '0')}';
+            }
           }
         }
 
@@ -235,37 +261,32 @@ class LocalNewsService {
   }
 
   String? _extractImage(XmlElement item, String? description) {
+    // enclosure
     final enclosure = item.findElements('enclosure').firstOrNull;
     if (enclosure != null) {
       final url = enclosure.getAttribute('url');
       if (url != null && url.isNotEmpty) return url;
     }
 
+    // media:content
     final mediaContent = item.findElements('media:content').firstOrNull;
     if (mediaContent != null) {
       final url = mediaContent.getAttribute('url');
       if (url != null && url.isNotEmpty) return url;
     }
 
+    // media:thumbnail
     final mediaThumbnail = item.findElements('media:thumbnail').firstOrNull;
     if (mediaThumbnail != null) {
       final url = mediaThumbnail.getAttribute('url');
       if (url != null && url.isNotEmpty) return url;
     }
 
+    // Description içinden img src
     if (description != null) {
-      // Resim URL'sini description içinden çıkar
-      final imgRegex = RegExp(r'<img[^>]+src="([^"]+)"');
-      final imgMatch = imgRegex.firstMatch(description);
-      if (imgMatch != null) {
-        return imgMatch.group(1);
-      }
-      // Tek tırnak ile de dene
-      final imgRegex2 = RegExp(r"<img[^>]+src='([^']+)'");
-      final imgMatch2 = imgRegex2.firstMatch(description);
-      if (imgMatch2 != null) {
-        return imgMatch2.group(1);
-      }
+      final imgRegex = RegExp(r'<img[^>]+src=["' "'" r']([^"' "'" r']+)["' "'" r']');
+      final match = imgRegex.firstMatch(description);
+      if (match != null) return match.group(1);
     }
 
     return null;
@@ -277,8 +298,9 @@ class LocalNewsService {
     try { return DateTime.parse(dateStr); } catch (_) {}
 
     try {
+      // Türkçe karakterler için genişletilmiş regex
       final rfc822Regex = RegExp(
-        r'(\w+),?\s+(\d{1,2})\s+(\w+)\s+(\d{4})\s+(\d{2}):(\d{2}):?(\d{2})?\s*([\+\-]?\d{4}|GMT|UTC)?',
+        r'([a-zA-ZğüşöçıİĞÜŞÖÇ]+),?\s+(\d{1,2})\s+([a-zA-ZğüşöçıİĞÜŞÖÇ]+)\s+(\d{4})\s+(\d{2}):(\d{2}):?(\d{2})?\s*([\+\-]?\d{4}|GMT|UTC)?',
         caseSensitive: false,
       );
       final match = rfc822Regex.firstMatch(dateStr);
@@ -299,14 +321,23 @@ class LocalNewsService {
 
   int _monthToNumber(String month) {
     const months = {
+      // İngilizce
       'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
       'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+      // Türkçe
+      'oca': 1, 'ocak': 1, 'şub': 2, 'şubat': 2, 'mart': 3,
+      'nis': 4, 'nisan': 4, 'mayıs': 5, 'haz': 6, 'haziran': 6,
+      'tem': 7, 'temmuz': 7, 'ağu': 8, 'ağustos': 8,
+      'eyl': 9, 'eylül': 9, 'eki': 10, 'ekim': 10,
+      'kas': 11, 'kasım': 11, 'ara': 12, 'aralık': 12,
     };
     return months[month.toLowerCase()] ?? 1;
   }
 
   String _cleanHtml(String text) {
     return text
+        .replaceAll(RegExp(r'<!\[CDATA\['), '')
+        .replaceAll(RegExp(r'\]\]>'), '')
         .replaceAll(RegExp(r'<[^>]*>'), '')
         .replaceAll('&amp;', '&')
         .replaceAll('&lt;', '<')
@@ -316,5 +347,20 @@ class LocalNewsService {
         .replaceAll('&nbsp;', ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
+  }
+
+  String _normalizeText(String text) {
+    const Map<String, String> turkishChars = {
+      'ı': 'i', 'İ': 'i', 'ğ': 'g', 'Ğ': 'g',
+      'ü': 'u', 'Ü': 'u', 'ş': 's', 'Ş': 's',
+      'ö': 'o', 'Ö': 'o', 'ç': 'c', 'Ç': 'c',
+    };
+
+    String normalized = text.toLowerCase().trim();
+    turkishChars.forEach((key, value) {
+      normalized = normalized.replaceAll(key, value);
+    });
+    normalized = normalized.replaceAll('_', '').replaceAll(' ', '');
+    return normalized;
   }
 }

@@ -4,6 +4,7 @@ import 'package:get_storage/get_storage.dart';
 /// Haber okuma ayarları controller'ı
 /// - Font boyutu ayarlama
 /// - Okuma modu (sadece metin)
+/// - Görselleri gizleme
 class ReadingSettingsController extends GetxController {
   final GetStorage _storage = GetStorage();
   
@@ -14,6 +15,7 @@ class ReadingSettingsController extends GetxController {
   
   var fontSize = defaultFontSize.obs;
   var isReadingMode = false.obs; // Sadece metin modu
+  var hideImages = false.obs; // Görselleri gizle
   
   @override
   void onInit() {
@@ -24,11 +26,13 @@ class ReadingSettingsController extends GetxController {
   void _loadSettings() {
     fontSize.value = _storage.read<double>('reading_font_size') ?? defaultFontSize;
     isReadingMode.value = _storage.read<bool>('reading_mode') ?? false;
+    hideImages.value = _storage.read<bool>('hide_images') ?? false;
   }
   
   void _saveSettings() {
     _storage.write('reading_font_size', fontSize.value);
     _storage.write('reading_mode', isReadingMode.value);
+    _storage.write('hide_images', hideImages.value);
   }
   
   /// Font boyutunu artır
@@ -56,6 +60,12 @@ class ReadingSettingsController extends GetxController {
   /// Okuma modunu değiştir
   void toggleReadingMode() {
     isReadingMode.value = !isReadingMode.value;
+    _saveSettings();
+  }
+  
+  /// Görselleri gizle/göster
+  void toggleHideImages() {
+    hideImages.value = !hideImages.value;
     _saveSettings();
   }
   

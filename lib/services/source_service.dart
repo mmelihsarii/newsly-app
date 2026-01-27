@@ -94,11 +94,16 @@ class SourceService {
   List<SourceCategory> _groupByCategory(List<SourceModel> sources) {
     final Map<String, List<SourceModel>> grouped = {};
     
+    print('🔍 Gruplama başlıyor - ${sources.length} kaynak');
+    
     for (final source in sources) {
       final category = source.category.isNotEmpty ? source.category : 'Diğer';
       
       // Skip "Genel" category
       if (category.toLowerCase() == 'genel') continue;
+      
+      // Debug: Her kaynağı logla
+      print('   📄 ${source.id} => "${source.name}" (${category})');
       
       grouped.putIfAbsent(category, () => []);
       grouped[category]!.add(source);
@@ -117,6 +122,11 @@ class SourceService {
 
     // Sort categories alphabetically by name
     categories.sort((a, b) => a.name.compareTo(b.name));
+    
+    // Debug: Sonucu logla
+    for (final cat in categories) {
+      print('📁 ${cat.name}: ${cat.sources.map((s) => s.name).join(", ")}');
+    }
     
     return categories;
   }
@@ -219,5 +229,12 @@ class SourceService {
         .replaceAll('&', '')
         .replaceAll('-', '_')
         .replaceAll(RegExp(r'[^a-z0-9_]'), '');
+  }
+  
+  /// Cache'i temizle (debug için)
+  void clearCache() {
+    _storage.remove(_sourcesKey);
+    _storage.remove(_sourcesCacheTimeKey);
+    print('🗑️ Kaynak cache\'i temizlendi');
   }
 }

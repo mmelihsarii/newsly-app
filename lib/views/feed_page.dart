@@ -204,7 +204,7 @@ class _FeedPageState extends State<FeedPage> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            DateHelper.getTimeAgo(news.date),
+                            DateHelper.getTimeAgo(news.publishedAt ?? news.date),
                             style: const TextStyle(
                               fontSize: 12,
                               color: Colors.grey,

@@ -1,412 +1,432 @@
-// lib/data/city_data.dart
-
+/// Türkiye'nin 81 ili ve ilçeleri
 class CityData {
-  // Türkiye'nin 81 ili - Alfabetik sıralı
   static final List<Map<String, dynamic>> cities = [
     {
       "name": "Adana",
       "plateCode": "01",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/adana",
+      "districts": ["Aladağ", "Ceyhan", "Çukurova", "Feke", "İmamoğlu", "Karaisalı", "Karataş", "Kozan", "Pozantı", "Saimbeyli", "Sarıçam", "Seyhan", "Tufanbeyli", "Yumurtalık", "Yüreğir"]
     },
     {
       "name": "Adıyaman",
       "plateCode": "02",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/adiyaman",
+      "districts": ["Besni", "Çelikhan", "Gerger", "Gölbaşı", "Kahta", "Merkez", "Samsat", "Sincik", "Tut"]
     },
     {
       "name": "Afyonkarahisar",
       "plateCode": "03",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/afyonkarahisar",
+      "districts": ["Başmakçı", "Bayat", "Bolvadin", "Çay", "Çobanlar", "Dazkırı", "Dinar", "Emirdağ", "Evciler", "Hocalar", "İhsaniye", "İscehisar", "Kızılören", "Merkez", "Sandıklı", "Sinanpaşa", "Sultandağı", "Şuhut"]
     },
     {
       "name": "Ağrı",
       "plateCode": "04",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/agri",
+      "districts": ["Diyadin", "Doğubayazıt", "Eleşkirt", "Hamur", "Merkez", "Patnos", "Taşlıçay", "Tutak"]
     },
     {
       "name": "Aksaray",
       "plateCode": "68",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/aksaray",
+      "districts": ["Ağaçören", "Eskil", "Gülağaç", "Güzelyurt", "Merkez", "Ortaköy", "Sarıyahşi", "Sultanhanı"]
     },
     {
       "name": "Amasya",
       "plateCode": "05",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/amasya",
+      "districts": ["Göynücek", "Gümüşhacıköy", "Hamamözü", "Merkez", "Merzifon", "Suluova", "Taşova"]
     },
     {
       "name": "Ankara",
       "plateCode": "06",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/ankara",
+      "districts": ["Akyurt", "Altındağ", "Ayaş", "Balâ", "Beypazarı", "Çamlıdere", "Çankaya", "Çubuk", "Elmadağ", "Etimesgut", "Evren", "Gölbaşı", "Güdül", "Haymana", "Kahramankazan", "Kalecik", "Keçiören", "Kızılcahamam", "Mamak", "Nallıhan", "Polatlı", "Pursaklar", "Sincan", "Şereflikoçhisar", "Yenimahalle"]
     },
     {
       "name": "Antalya",
       "plateCode": "07",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/antalya",
+      "districts": ["Akseki", "Aksu", "Alanya", "Demre", "Döşemealtı", "Elmalı", "Finike", "Gazipaşa", "Gündoğmuş", "İbradı", "Kaş", "Kemer", "Kepez", "Konyaaltı", "Korkuteli", "Kumluca", "Manavgat", "Muratpaşa", "Serik"]
     },
     {
       "name": "Ardahan",
       "plateCode": "75",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/ardahan",
+      "districts": ["Çıldır", "Damal", "Göle", "Hanak", "Merkez", "Posof"]
     },
     {
       "name": "Artvin",
       "plateCode": "08",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/artvin",
+      "districts": ["Ardanuç", "Arhavi", "Borçka", "Hopa", "Kemalpaşa", "Merkez", "Murgul", "Şavşat", "Yusufeli"]
     },
     {
       "name": "Aydın",
       "plateCode": "09",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/aydin",
+      "districts": ["Bozdoğan", "Buharkent", "Çine", "Didim", "Efeler", "Germencik", "İncirliova", "Karacasu", "Karpuzlu", "Koçarlı", "Köşk", "Kuşadası", "Kuyucak", "Nazilli", "Söke", "Sultanhisar", "Yenipazar"]
     },
     {
       "name": "Balıkesir",
       "plateCode": "10",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/balikesir",
+      "districts": ["Altıeylül", "Ayvalık", "Balya", "Bandırma", "Bigadiç", "Burhaniye", "Dursunbey", "Edremit", "Erdek", "Gömeç", "Gönen", "Havran", "İvrindi", "Karesi", "Kepsut", "Manyas", "Marmara", "Savaştepe", "Sındırgı", "Susurluk"]
     },
     {
       "name": "Bartın",
       "plateCode": "74",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/bartin",
+      "districts": ["Amasra", "Kurucaşile", "Merkez", "Ulus"]
     },
     {
       "name": "Batman",
       "plateCode": "72",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/batman",
+      "districts": ["Beşiri", "Gercüş", "Hasankeyf", "Kozluk", "Merkez", "Sason"]
     },
     {
       "name": "Bayburt",
       "plateCode": "69",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/bayburt",
+      "districts": ["Aydıntepe", "Demirözü", "Merkez"]
     },
     {
       "name": "Bilecik",
       "plateCode": "11",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/bilecik",
+      "districts": ["Bozüyük", "Gölpazarı", "İnhisar", "Merkez", "Osmaneli", "Pazaryeri", "Söğüt", "Yenipazar"]
     },
     {
       "name": "Bingöl",
       "plateCode": "12",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/bingol",
+      "districts": ["Adaklı", "Genç", "Karlıova", "Kiğı", "Merkez", "Solhan", "Yayladere", "Yedisu"]
     },
     {
       "name": "Bitlis",
       "plateCode": "13",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/bitlis",
+      "districts": ["Adilcevaz", "Ahlat", "Güroymak", "Hizan", "Merkez", "Mutki", "Tatvan"]
     },
     {
       "name": "Bolu",
       "plateCode": "14",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/bolu",
+      "districts": ["Dörtdivan", "Gerede", "Göynük", "Kıbrıscık", "Mengen", "Merkez", "Mudurnu", "Seben", "Yeniçağa"]
     },
     {
       "name": "Burdur",
       "plateCode": "15",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/burdur",
+      "districts": ["Ağlasun", "Altınyayla", "Bucak", "Çavdır", "Çeltikçi", "Gölhisar", "Karamanlı", "Kemer", "Merkez", "Tefenni", "Yeşilova"]
     },
     {
       "name": "Bursa",
       "plateCode": "16",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/bursa",
+      "districts": ["Büyükorhan", "Gemlik", "Gürsu", "Harmancık", "İnegöl", "İznik", "Karacabey", "Keles", "Kestel", "Mudanya", "Mustafakemalpaşa", "Nilüfer", "Orhaneli", "Orhangazi", "Osmangazi", "Yenişehir", "Yıldırım"]
     },
     {
       "name": "Çanakkale",
       "plateCode": "17",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/canakkale",
+      "districts": ["Ayvacık", "Bayramiç", "Biga", "Bozcaada", "Çan", "Eceabat", "Ezine", "Gelibolu", "Gökçeada", "Lapseki", "Merkez", "Yenice"]
     },
     {
       "name": "Çankırı",
       "plateCode": "18",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/cankiri",
+      "districts": ["Atkaracalar", "Bayramören", "Çerkeş", "Eldivan", "Ilgaz", "Kızılırmak", "Korgun", "Kurşunlu", "Merkez", "Orta", "Şabanözü", "Yapraklı"]
     },
     {
       "name": "Çorum",
       "plateCode": "19",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/corum",
+      "districts": ["Alaca", "Bayat", "Boğazkale", "Dodurga", "İskilip", "Kargı", "Laçin", "Mecitözü", "Merkez", "Oğuzlar", "Ortaköy", "Osmancık", "Sungurlu", "Uğurludağ"]
     },
     {
       "name": "Denizli",
       "plateCode": "20",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/denizli",
+      "districts": ["Acıpayam", "Babadağ", "Baklan", "Bekilli", "Beyağaç", "Bozkurt", "Buldan", "Çal", "Çameli", "Çardak", "Çivril", "Güney", "Honaz", "Kale", "Merkezefendi", "Pamukkale", "Sarayköy", "Serinhisar", "Tavas"]
     },
     {
       "name": "Diyarbakır",
       "plateCode": "21",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/diyarbakir",
+      "districts": ["Bağlar", "Bismil", "Çermik", "Çınar", "Çüngüş", "Dicle", "Eğil", "Ergani", "Hani", "Hazro", "Kayapınar", "Kocaköy", "Kulp", "Lice", "Silvan", "Sur", "Yenişehir"]
     },
     {
       "name": "Düzce",
       "plateCode": "81",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/duzce",
+      "districts": ["Akçakoca", "Cumayeri", "Çilimli", "Gölyaka", "Gümüşova", "Kaynaşlı", "Merkez", "Yığılca"]
     },
     {
       "name": "Edirne",
       "plateCode": "22",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/edirne",
+      "districts": ["Enez", "Havsa", "İpsala", "Keşan", "Lalapaşa", "Meriç", "Merkez", "Süloğlu", "Uzunköprü"]
     },
     {
       "name": "Elazığ",
       "plateCode": "23",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/elazig",
+      "districts": ["Ağın", "Alacakaya", "Arıcak", "Baskil", "Karakoçan", "Keban", "Kovancılar", "Maden", "Merkez", "Palu", "Sivrice"]
     },
     {
       "name": "Erzincan",
       "plateCode": "24",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/erzincan",
+      "districts": ["Çayırlı", "İliç", "Kemah", "Kemaliye", "Merkez", "Otlukbeli", "Refahiye", "Tercan", "Üzümlü"]
     },
     {
       "name": "Erzurum",
       "plateCode": "25",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/erzurum",
+      "districts": ["Aşkale", "Aziziye", "Çat", "Hınıs", "Horasan", "İspir", "Karaçoban", "Karayazı", "Köprüköy", "Narman", "Oltu", "Olur", "Palandöken", "Pasinler", "Pazaryolu", "Şenkaya", "Tekman", "Tortum", "Uzundere", "Yakutiye"]
     },
     {
       "name": "Eskişehir",
       "plateCode": "26",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/eskisehir",
+      "districts": ["Alpu", "Beylikova", "Çifteler", "Günyüzü", "Han", "İnönü", "Mahmudiye", "Mihalgazi", "Mihalıççık", "Odunpazarı", "Sarıcakaya", "Seyitgazi", "Sivrihisar", "Tepebaşı"]
     },
     {
       "name": "Gaziantep",
       "plateCode": "27",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/gaziantep",
+      "districts": ["Araban", "İslahiye", "Karkamış", "Nizip", "Nurdağı", "Oğuzeli", "Şahinbey", "Şehitkamil", "Yavuzeli"]
     },
     {
       "name": "Giresun",
       "plateCode": "28",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/giresun",
+      "districts": ["Alucra", "Bulancak", "Çamoluk", "Çanakçı", "Dereli", "Doğankent", "Espiye", "Eynesil", "Görele", "Güce", "Keşap", "Merkez", "Piraziz", "Şebinkarahisar", "Tirebolu", "Yağlıdere"]
     },
     {
       "name": "Gümüşhane",
       "plateCode": "29",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/gumushane",
+      "districts": ["Kelkit", "Köse", "Kürtün", "Merkez", "Şiran", "Torul"]
     },
     {
       "name": "Hakkari",
       "plateCode": "30",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/hakkari",
+      "districts": ["Çukurca", "Derecik", "Merkez", "Şemdinli", "Yüksekova"]
     },
     {
       "name": "Hatay",
       "plateCode": "31",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/hatay",
+      "districts": ["Altınözü", "Antakya", "Arsuz", "Belen", "Defne", "Dörtyol", "Erzin", "Hassa", "İskenderun", "Kırıkhan", "Kumlu", "Payas", "Reyhanlı", "Samandağ", "Yayladağı"]
     },
     {
       "name": "Iğdır",
       "plateCode": "76",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/igdir",
+      "districts": ["Aralık", "Karakoyunlu", "Merkez", "Tuzluca"]
     },
     {
       "name": "Isparta",
       "plateCode": "32",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/isparta",
+      "districts": ["Aksu", "Atabey", "Eğirdir", "Gelendost", "Gönen", "Keçiborlu", "Merkez", "Senirkent", "Sütçüler", "Şarkikaraağaç", "Uluborlu", "Yalvaç", "Yenişarbademli"]
     },
     {
       "name": "İstanbul",
       "plateCode": "34",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/istanbul",
+      "districts": ["Adalar", "Arnavutköy", "Ataşehir", "Avcılar", "Bağcılar", "Bahçelievler", "Bakırköy", "Başakşehir", "Bayrampaşa", "Beşiktaş", "Beykoz", "Beylikdüzü", "Beyoğlu", "Büyükçekmece", "Çatalca", "Çekmeköy", "Esenler", "Esenyurt", "Eyüpsultan", "Fatih", "Gaziosmanpaşa", "Güngören", "Kadıköy", "Kağıthane", "Kartal", "Küçükçekmece", "Maltepe", "Pendik", "Sancaktepe", "Sarıyer", "Silivri", "Sultanbeyli", "Sultangazi", "Şile", "Şişli", "Tuzla", "Ümraniye", "Üsküdar", "Zeytinburnu"]
     },
     {
       "name": "İzmir",
       "plateCode": "35",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/izmir",
+      "districts": ["Aliağa", "Balçova", "Bayındır", "Bayraklı", "Bergama", "Beydağ", "Bornova", "Buca", "Çeşme", "Çiğli", "Dikili", "Foça", "Gaziemir", "Güzelbahçe", "Karabağlar", "Karaburun", "Karşıyaka", "Kemalpaşa", "Kınık", "Kiraz", "Konak", "Menderes", "Menemen", "Narlıdere", "Ödemiş", "Seferihisar", "Selçuk", "Tire", "Torbalı", "Urla"]
     },
     {
       "name": "Kahramanmaraş",
       "plateCode": "46",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/kahramanmaras",
+      "districts": ["Afşin", "Andırın", "Çağlayancerit", "Dulkadiroğlu", "Ekinözü", "Elbistan", "Göksun", "Nurhak", "Onikişubat", "Pazarcık", "Türkoğlu"]
     },
     {
       "name": "Karabük",
       "plateCode": "78",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/karabuk",
+      "districts": ["Eflani", "Eskipazar", "Merkez", "Ovacık", "Safranbolu", "Yenice"]
     },
     {
       "name": "Karaman",
       "plateCode": "70",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/karaman",
+      "districts": ["Ayrancı", "Başyayla", "Ermenek", "Kazımkarabekir", "Merkez", "Sarıveliler"]
     },
     {
       "name": "Kars",
       "plateCode": "36",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/kars",
+      "districts": ["Akyaka", "Arpaçay", "Digor", "Kağızman", "Merkez", "Sarıkamış", "Selim", "Susuz"]
     },
     {
       "name": "Kastamonu",
       "plateCode": "37",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/kastamonu",
+      "districts": ["Abana", "Ağlı", "Araç", "Azdavay", "Bozkurt", "Cide", "Çatalzeytin", "Daday", "Devrekani", "Doğanyurt", "Hanönü", "İhsangazi", "İnebolu", "Küre", "Merkez", "Pınarbaşı", "Seydiler", "Şenpazar", "Taşköprü", "Tosya"]
     },
     {
       "name": "Kayseri",
       "plateCode": "38",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/kayseri",
+      "districts": ["Akkışla", "Bünyan", "Develi", "Felahiye", "Hacılar", "İncesu", "Kocasinan", "Melikgazi", "Özvatan", "Pınarbaşı", "Sarıoğlan", "Sarız", "Talas", "Tomarza", "Yahyalı", "Yeşilhisar"]
     },
     {
       "name": "Kilis",
       "plateCode": "79",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/kilis",
+      "districts": ["Elbeyli", "Merkez", "Musabeyli", "Polateli"]
     },
     {
       "name": "Kırıkkale",
       "plateCode": "71",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/kirikkale",
+      "districts": ["Bahşılı", "Balışeyh", "Çelebi", "Delice", "Karakeçili", "Keskin", "Merkez", "Sulakyurt", "Yahşihan"]
     },
     {
       "name": "Kırklareli",
       "plateCode": "39",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/kirklareli",
+      "districts": ["Babaeski", "Demirköy", "Kofçaz", "Lüleburgaz", "Merkez", "Pehlivanköy", "Pınarhisar", "Vize"]
     },
     {
       "name": "Kırşehir",
       "plateCode": "40",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/kirsehir",
+      "districts": ["Akçakent", "Akpınar", "Boztepe", "Çiçekdağı", "Kaman", "Merkez", "Mucur"]
     },
     {
       "name": "Kocaeli",
       "plateCode": "41",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/kocaeli",
+      "districts": ["Başiskele", "Çayırova", "Darıca", "Derince", "Dilovası", "Gebze", "Gölcük", "İzmit", "Kandıra", "Karamürsel", "Kartepe", "Körfez"]
     },
     {
       "name": "Konya",
       "plateCode": "42",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/konya",
+      "districts": ["Ahırlı", "Akören", "Akşehir", "Altınekin", "Beyşehir", "Bozkır", "Cihanbeyli", "Çeltik", "Çumra", "Derbent", "Derebucak", "Doğanhisar", "Emirgazi", "Ereğli", "Güneysınır", "Hadim", "Halkapınar", "Hüyük", "Ilgın", "Kadınhanı", "Karapınar", "Karatay", "Kulu", "Meram", "Sarayönü", "Selçuklu", "Seydişehir", "Taşkent", "Tuzlukçu", "Yalıhüyük", "Yunak"]
     },
     {
       "name": "Kütahya",
       "plateCode": "43",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/kutahya",
+      "districts": ["Altıntaş", "Aslanapa", "Çavdarhisar", "Domaniç", "Dumlupınar", "Emet", "Gediz", "Hisarcık", "Merkez", "Pazarlar", "Şaphane", "Simav", "Tavşanlı"]
     },
     {
       "name": "Malatya",
       "plateCode": "44",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/malatya",
+      "districts": ["Akçadağ", "Arapgir", "Arguvan", "Battalgazi", "Darende", "Doğanşehir", "Doğanyol", "Hekimhan", "Kale", "Kuluncak", "Pütürge", "Yazıhan", "Yeşilyurt"]
     },
     {
       "name": "Manisa",
       "plateCode": "45",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/manisa",
+      "districts": ["Ahmetli", "Akhisar", "Alaşehir", "Demirci", "Gölmarmara", "Gördes", "Kırkağaç", "Köprübaşı", "Kula", "Salihli", "Sarıgöl", "Saruhanlı", "Selendi", "Soma", "Şehzadeler", "Turgutlu", "Yunusemre"]
     },
     {
       "name": "Mardin",
       "plateCode": "47",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/mardin",
+      "districts": ["Artuklu", "Dargeçit", "Derik", "Kızıltepe", "Mazıdağı", "Midyat", "Nusaybin", "Ömerli", "Savur", "Yeşilli"]
     },
     {
       "name": "Mersin",
       "plateCode": "33",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/mersin",
+      "districts": ["Akdeniz", "Anamur", "Aydıncık", "Bozyazı", "Çamlıyayla", "Erdemli", "Gülnar", "Mezitli", "Mut", "Silifke", "Tarsus", "Toroslar", "Yenişehir"]
     },
     {
       "name": "Muğla",
       "plateCode": "48",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/mugla",
+      "districts": ["Bodrum", "Dalaman", "Datça", "Fethiye", "Kavaklıdere", "Köyceğiz", "Marmaris", "Menteşe", "Milas", "Ortaca", "Seydikemer", "Ula", "Yatağan"]
     },
     {
       "name": "Muş",
       "plateCode": "49",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/mus",
+      "districts": ["Bulanık", "Hasköy", "Korkut", "Malazgirt", "Merkez", "Varto"]
     },
     {
       "name": "Nevşehir",
       "plateCode": "50",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/nevsehir",
+      "districts": ["Acıgöl", "Avanos", "Derinkuyu", "Gülşehir", "Hacıbektaş", "Kozaklı", "Merkez", "Ürgüp"]
     },
     {
       "name": "Niğde",
       "plateCode": "51",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/nigde",
+      "districts": ["Altunhisar", "Bor", "Çamardı", "Çiftlik", "Merkez", "Ulukışla"]
     },
     {
       "name": "Ordu",
       "plateCode": "52",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/ordu",
+      "districts": ["Akkuş", "Altınordu", "Aybastı", "Çamaş", "Çatalpınar", "Çaybaşı", "Fatsa", "Gölköy", "Gülyalı", "Gürgentepe", "İkizce", "Kabadüz", "Kabataş", "Korgan", "Kumru", "Mesudiye", "Perşembe", "Ulubey", "Ünye"]
     },
     {
       "name": "Osmaniye",
       "plateCode": "80",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/osmaniye",
+      "districts": ["Bahçe", "Düziçi", "Hasanbeyli", "Kadirli", "Merkez", "Sumbas", "Toprakkale"]
     },
     {
       "name": "Rize",
       "plateCode": "53",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/rize",
+      "districts": ["Ardeşen", "Çamlıhemşin", "Çayeli", "Derepazarı", "Fındıklı", "Güneysu", "Hemşin", "İkizdere", "İyidere", "Kalkandere", "Merkez", "Pazar"]
     },
     {
       "name": "Sakarya",
       "plateCode": "54",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/sakarya",
+      "districts": ["Adapazarı", "Akyazı", "Arifiye", "Erenler", "Ferizli", "Geyve", "Hendek", "Karapürçek", "Karasu", "Kaynarca", "Kocaali", "Pamukova", "Sapanca", "Serdivan", "Söğütlü", "Taraklı"]
     },
     {
       "name": "Samsun",
       "plateCode": "55",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/samsun",
+      "districts": ["Alaçam", "Asarcık", "Atakum", "Ayvacık", "Bafra", "Canik", "Çarşamba", "Havza", "İlkadım", "Kavak", "Ladik", "Ondokuzmayıs", "Salıpazarı", "Tekkeköy", "Terme", "Vezirköprü", "Yakakent"]
     },
     {
       "name": "Şanlıurfa",
       "plateCode": "63",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/sanliurfa",
+      "districts": ["Akçakale", "Birecik", "Bozova", "Ceylanpınar", "Eyyübiye", "Halfeti", "Haliliye", "Harran", "Hilvan", "Karaköprü", "Siverek", "Suruç", "Viranşehir"]
     },
     {
       "name": "Siirt",
       "plateCode": "56",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/siirt",
+      "districts": ["Baykan", "Eruh", "Kurtalan", "Merkez", "Pervari", "Şirvan", "Tillo"]
     },
     {
       "name": "Sinop",
       "plateCode": "57",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/sinop",
+      "districts": ["Ayancık", "Boyabat", "Dikmen", "Durağan", "Erfelek", "Gerze", "Merkez", "Saraydüzü", "Türkeli"]
     },
     {
       "name": "Şırnak",
       "plateCode": "73",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/sirnak",
+      "districts": ["Beytüşşebap", "Cizre", "Güçlükonak", "İdil", "Merkez", "Silopi", "Uludere"]
     },
     {
       "name": "Sivas",
       "plateCode": "58",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/sivas",
+      "districts": ["Akıncılar", "Altınyayla", "Divriği", "Doğanşar", "Gemerek", "Gölova", "Gürün", "Hafik", "İmranlı", "Kangal", "Koyulhisar", "Merkez", "Suşehri", "Şarkışla", "Ulaş", "Yıldızeli", "Zara"]
     },
     {
       "name": "Tekirdağ",
       "plateCode": "59",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/tekirdag",
+      "districts": ["Çerkezköy", "Çorlu", "Ergene", "Hayrabolu", "Kapaklı", "Malkara", "Marmaraereğlisi", "Muratlı", "Saray", "Süleymanpaşa", "Şarköy"]
     },
     {
       "name": "Tokat",
       "plateCode": "60",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/tokat",
+      "districts": ["Almus", "Artova", "Başçiftlik", "Erbaa", "Merkez", "Niksar", "Pazar", "Reşadiye", "Sulusaray", "Turhal", "Yeşilyurt", "Zile"]
     },
     {
       "name": "Trabzon",
       "plateCode": "61",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/trabzon",
+      "districts": ["Akçaabat", "Araklı", "Arsin", "Beşikdüzü", "Çarşıbaşı", "Çaykara", "Dernekpazarı", "Düzköy", "Hayrat", "Köprübaşı", "Maçka", "Of", "Ortahisar", "Sürmene", "Şalpazarı", "Tonya", "Vakfıkebir", "Yomra"]
     },
     {
       "name": "Tunceli",
       "plateCode": "62",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/tunceli",
+      "districts": ["Çemişgezek", "Hozat", "Mazgirt", "Merkez", "Nazımiye", "Ovacık", "Pertek", "Pülümür"]
     },
     {
       "name": "Uşak",
       "plateCode": "64",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/usak",
+      "districts": ["Banaz", "Eşme", "Karahallı", "Merkez", "Sivaslı", "Ulubey"]
     },
     {
       "name": "Van",
       "plateCode": "65",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/van",
+      "districts": ["Bahçesaray", "Başkale", "Çaldıran", "Çatak", "Edremit", "Erciş", "Gevaş", "Gürpınar", "İpekyolu", "Muradiye", "Özalp", "Saray", "Tuşba"]
     },
     {
       "name": "Yalova",
       "plateCode": "77",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/yalova",
+      "districts": ["Altınova", "Armutlu", "Çınarcık", "Çiftlikköy", "Merkez", "Termal"]
     },
     {
       "name": "Yozgat",
       "plateCode": "66",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/yozgat",
+      "districts": ["Akdağmadeni", "Aydıncık", "Boğazlıyan", "Çandır", "Çayıralan", "Çekerek", "Kadışehri", "Merkez", "Saraykent", "Sarıkaya", "Sorgun", "Şefaatli", "Yenifakılı", "Yerköy"]
     },
     {
       "name": "Zonguldak",
       "plateCode": "67",
-      "rss": "https://www.hurriyet.com.tr/rss/yerel-haberler/zonguldak",
+      "districts": ["Alaplı", "Çaycuma", "Devrek", "Ereğli", "Gökçebey", "Kilimli", "Kozlu", "Merkez"]
     },
   ];
+
+  /// Şehir adından ilçeleri getir
+  static List<String> getDistricts(String cityName) {
+    final city = cities.firstWhere(
+      (c) => c['name'] == cityName,
+      orElse: () => {'districts': <String>[]},
+    );
+    return List<String>.from(city['districts'] ?? []);
+  }
+
+  /// Tüm şehir ve ilçe isimlerini düz liste olarak getir
+  static List<String> getAllLocations() {
+    final locations = <String>[];
+    for (var city in cities) {
+      locations.add(city['name']);
+      final districts = city['districts'] as List<dynamic>?;
+      if (districts != null) {
+        locations.addAll(districts.cast<String>());
+      }
+    }
+    return locations;
+  }
 }

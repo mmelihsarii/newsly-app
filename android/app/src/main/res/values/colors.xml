@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bildirim ikonu rengi (Newsly kırmızısı) -->
+    <color name="notification_color">#F4220B</color>
+</resources>

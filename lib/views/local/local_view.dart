@@ -7,6 +7,7 @@ import '../../controllers/saved_controller.dart';
 import '../../controllers/search_controller.dart' as search;
 import '../../controllers/home_controller.dart';
 import '../../controllers/dashboard_controller.dart';
+import '../../controllers/reading_settings_controller.dart';
 import '../../services/notification_service.dart';
 import '../../utils/colors.dart';
 import '../../utils/date_helper.dart';
@@ -58,82 +59,271 @@ class LocalView extends StatelessWidget {
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         
-        return Container(
-          height: 56,
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1A2F47) : Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: isDark 
-                    ? Colors.black.withOpacity(0.2) 
-                    : Colors.black.withOpacity(0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Obx(() {
-            if (controller.isCitiesLoading.value) {
-              return Center(
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: isDark ? Colors.white : AppColors.primary,
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Şehir Listesi
+            Container(
+              height: 46,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1A2F47) : Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark 
+                        ? Colors.black.withOpacity(0.2) 
+                        : Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
                   ),
-                ),
-              );
-            }
-
-            // selectedCity'yi burada dinle - bu tüm listenin yeniden build edilmesini sağlar
-            final currentSelectedCity = controller.selectedCity.value;
-
-            return ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              itemCount: controller.cityList.length,
-              itemBuilder: (context, index) {
-                final city = controller.cityList[index];
-                final isSelected = currentSelectedCity?['name'] == city['name'];
-                final cityName = city['name'] ?? '';
-
-                return GestureDetector(
-                  onTap: () => controller.selectCity(city),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: isSelected 
-                          ? AppColors.primary 
-                          : (isDark ? const Color(0xFF132440) : Colors.white),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected
-                            ? AppColors.primary
-                            : (isDark ? Colors.white24 : Colors.grey.shade300),
-                        width: isSelected ? 1.5 : 1.0,
+                ],
+              ),
+              child: Obx(() {
+                final cities = controller.cityList;
+                final currentSelectedCity = controller.selectedCity.value;
+                
+                if (cities.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'Şehirler yükleniyor...',
+                      style: TextStyle(
+                        color: isDark ? Colors.white54 : Colors.grey,
                       ),
                     ),
-                    child: Center(
-                      child: Text(
-                        cityName,
-                        style: TextStyle(
+                  );
+                }
+
+                return ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  itemCount: cities.length,
+                  itemBuilder: (context, index) {
+                    final city = cities[index];
+                    final isSelected = currentSelectedCity?['name'] == city['name'];
+                    final cityName = city['name'] ?? '';
+
+                    return GestureDetector(
+                      onTap: () => controller.selectCity(city),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        decoration: BoxDecoration(
                           color: isSelected 
-                              ? Colors.white 
-                              : (isDark ? Colors.white70 : Colors.black87),
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          fontSize: 14,
+                              ? AppColors.primary 
+                              : (isDark ? const Color(0xFF132440) : Colors.white),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.primary
+                                : (isDark ? Colors.white24 : Colors.grey.shade300),
+                            width: isSelected ? 1.5 : 1.0,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            cityName,
+                            style: TextStyle(
+                              color: isSelected 
+                                  ? Colors.white 
+                                  : (isDark ? Colors.white70 : Colors.black87),
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                          ),
                         ),
                       ),
+                    );
+                  },
+                );
+              }),
+            ),
+            // İlçe Listesi
+            Obx(() {
+              final districts = controller.districtList;
+              final selectedDistrict = controller.selectedDistrict.value;
+              
+              if (districts.isEmpty) return const SizedBox.shrink();
+              
+              return Container(
+                height: 38,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF132440) : Colors.grey.shade50,
+                ),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  itemCount: districts.length + 1, // +1 for "Tümü" option
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      // "Tümü" seçeneği
+                      final isSelected = selectedDistrict == null;
+                      return GestureDetector(
+                        onTap: () => controller.selectDistrict(null),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected 
+                                ? const Color(0xFF14B8A6)
+                                : (isDark ? const Color(0xFF1A2F47) : Colors.white),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFF14B8A6)
+                                  : (isDark ? Colors.white12 : Colors.grey.shade300),
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Tümü',
+                              style: TextStyle(
+                                color: isSelected 
+                                    ? Colors.white 
+                                    : (isDark ? Colors.white54 : Colors.grey.shade600),
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    
+                    final district = districts[index - 1];
+                    final isSelected = selectedDistrict == district;
+                    
+                    return GestureDetector(
+                      onTap: () => controller.selectDistrict(district),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: isSelected 
+                              ? const Color(0xFF14B8A6)
+                              : (isDark ? const Color(0xFF1A2F47) : Colors.white),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? const Color(0xFF14B8A6)
+                                : (isDark ? Colors.white12 : Colors.grey.shade300),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            district,
+                            style: TextStyle(
+                              color: isSelected 
+                                  ? Colors.white 
+                                  : (isDark ? Colors.white54 : Colors.grey.shade600),
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            }),
+            // Kaynak Listesi (şehir + ilçe kaynakları)
+            Obx(() {
+              final citySources = controller.citySourcesList;
+              final districtSources = controller.districtSourcesList;
+              final allSources = [...citySources, ...districtSources];
+              final cityName = controller.selectedCity.value?['name'] ?? '';
+              
+              if (allSources.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F1E32) : Colors.grey.shade100,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isDark ? Colors.white12 : Colors.grey.shade200,
+                      ),
                     ),
                   ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 14,
+                        color: isDark ? Colors.white38 : Colors.grey,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$cityName için kaynak bulunamadı',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.white38 : Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
                 );
-              },
-            );
-          }),
+              }
+              
+              return Container(
+                height: 32,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F1E32) : Colors.grey.shade100,
+                  border: Border(
+                    bottom: BorderSide(
+                      color: isDark ? Colors.white12 : Colors.grey.shade200,
+                    ),
+                  ),
+                ),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  itemCount: allSources.length,
+                  itemBuilder: (context, index) {
+                    final source = allSources[index];
+                    final isDistrictSource = index >= citySources.length;
+                    
+                    return Container(
+                      margin: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isDark 
+                            ? const Color(0xFF1A2F47) 
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isDistrictSource 
+                              ? const Color(0xFF14B8A6).withOpacity(0.5)
+                              : (isDark ? Colors.white12 : Colors.grey.shade300),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.rss_feed,
+                            size: 10,
+                            color: isDistrictSource 
+                                ? const Color(0xFF14B8A6)
+                                : AppColors.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            source.name,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: isDark ? Colors.white70 : Colors.black87,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              );
+            }),
+          ],
         );
       },
     );
@@ -199,190 +389,194 @@ class LocalView extends StatelessWidget {
   }
 
   Widget _buildNewsCard(dynamic news) {
+    final readingController = Get.find<ReadingSettingsController>();
+    
     return Builder(
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
 
         return GestureDetector(
           onTap: () => Get.to(() => NewsDetailPage(news: news)),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1A2F47) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: isDark
-                      ? Colors.black.withOpacity(0.3)
-                      : Colors.black.withOpacity(0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Image
-                if (news.image != null && news.image!.isNotEmpty)
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
-                    child: CachedNetworkImage(
-                      imageUrl: news.image!,
-                      height: 160,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        height: 160,
-                        color: isDark
-                            ? const Color(0xFF132440)
-                            : Colors.grey.shade200,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: isDark ? Colors.white38 : AppColors.primary,
-                          ),
-                        ),
-                      ),
-                      errorWidget: (_, __, ___) => Container(
-                        height: 160,
-                        color: isDark
-                            ? const Color(0xFF132440)
-                            : Colors.grey.shade200,
-                        child: Center(
-                          child: Icon(
-                            Icons.image,
-                            size: 40,
-                            color: isDark ? Colors.white38 : Colors.grey,
-                          ),
-                        ),
-                      ),
-                    ),
+          child: Obx(() {
+            final hideImages = readingController.hideImages.value;
+            
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1A2F47) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withOpacity(0.3)
+                        : Colors.black.withOpacity(0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
-                // Content
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        news.title ?? '',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Image - hideImages açıksa gösterme
+                  if (!hideImages && news.image != null && news.image!.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        DateHelper.stripHtml(news.description ?? ''),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isDark ? Colors.white54 : Colors.grey.shade600,
+                      child: CachedNetworkImage(
+                        imageUrl: news.image!,
+                        height: 160,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 600,
+                        memCacheHeight: 320,
+                        fadeInDuration: const Duration(milliseconds: 200),
+                        fadeOutDuration: const Duration(milliseconds: 200),
+                        placeholder: (_, __) => Container(
+                          height: 160,
+                          color: isDark
+                              ? const Color(0xFF132440)
+                              : Colors.grey.shade200,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        errorWidget: (_, __, ___) => Container(
+                          height: 160,
+                          color: isDark
+                              ? const Color(0xFF132440)
+                              : Colors.grey.shade200,
+                          child: Center(
+                            child: Icon(
+                              Icons.image,
+                              size: 40,
+                              color: isDark ? Colors.white38 : Colors.grey,
+                            ),
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              news.categoryName ?? 'Yerel',
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                    ),
+                  // Content
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          news.title ?? '',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                          maxLines: hideImages ? 3 : 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          DateHelper.stripHtml(news.description ?? ''),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDark ? Colors.white54 : Colors.grey.shade600,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                news.categoryName ?? 'Yerel',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
-                          ),
-                          const Spacer(),
-                          // Kaynak ve Tarih
-                          Row(
-                            children: [
-                              // Kaynak adı
-                              if (news.sourceName != null &&
-                                  news.sourceName!.isNotEmpty) ...[
-                                Icon(
-                                  Icons.article_outlined,
-                                  size: 12,
-                                  color: isDark ? Colors.white54 : Colors.grey,
-                                ),
-                                const SizedBox(width: 4),
+                            const Spacer(),
+                            // Kaynak ve Tarih
+                            Row(
+                              children: [
+                                // Kaynak adı
+                                if (news.sourceName != null &&
+                                    news.sourceName!.isNotEmpty) ...[
+                                  Icon(
+                                    Icons.article_outlined,
+                                    size: 12,
+                                    color: isDark ? Colors.white54 : Colors.grey,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    news.sourceName!,
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white54
+                                          : Colors.grey.shade600,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '•',
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white38
+                                          : Colors.grey.shade400,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                // Tarih
                                 Text(
-                                  news.sourceName!,
+                                  DateHelper.getTimeAgo(news.publishedAt ?? news.date),
                                   style: TextStyle(
                                     color: isDark
                                         ? Colors.white54
-                                        : Colors.grey.shade600,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '•',
-                                  style: TextStyle(
-                                    color: isDark
-                                        ? Colors.white38
-                                        : Colors.grey.shade400,
+                                        : Colors.grey.shade500,
+                                    fontSize: 12,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
                               ],
-                              // Tarih
-                              Text(
-                                DateHelper.getTimeAgo(news.date),
-                                style: TextStyle(
-                                  color: isDark
-                                      ? Colors.white54
-                                      : Colors.grey.shade500,
-                                  fontSize: 12,
+                            ),
+                            const SizedBox(width: 12),
+                            Obx(() {
+                              final savedController = Get.find<SavedController>();
+                              final isSaved = savedController.isSaved(news);
+                              return GestureDetector(
+                                onTap: () => savedController.toggleSave(news),
+                                child: Icon(
+                                  isSaved
+                                      ? Icons.bookmark
+                                      : Icons.bookmark_border,
+                                  color: isSaved
+                                      ? Colors.red
+                                      : (isDark
+                                            ? Colors.white38
+                                            : Colors.grey.shade400),
+                                  size: 22,
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(width: 12),
-                          Obx(() {
-                            final savedController = Get.find<SavedController>();
-                            final isSaved = savedController.isSaved(news);
-                            return GestureDetector(
-                              onTap: () => savedController.toggleSave(news),
-                              child: Icon(
-                                isSaved
-                                    ? Icons.bookmark
-                                    : Icons.bookmark_border,
-                                color: isSaved
-                                    ? Colors.red
-                                    : (isDark
-                                          ? Colors.white38
-                                          : Colors.grey.shade400),
-                                size: 22,
-                              ),
-                            );
-                          }),
-                        ],
-                      ),
-                    ],
+                              );
+                            }),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
+                ],
+              ),
+            );
+          }),
         );
       },
     );
